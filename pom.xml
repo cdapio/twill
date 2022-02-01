@@ -21,22 +21,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.apache</groupId>
-        <artifactId>apache</artifactId>
-        <version>13</version>
-    </parent>
-
-    <groupId>org.apache.twill</groupId>
+    <groupId>io.cdap.twill</groupId>
     <artifactId>twill-parent</artifactId>
-    <version>0.15.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Apache Twill</name>
-    <url>http://twill.apache.org</url>
+    <name>CDAP Twill</name>
+    <description>CDAP Twill project</description>
+    <url>http://cdap.io</url>
 
     <organization>
-        <name>The Apache Software Foundation</name>
-        <url>http://www.apache.org</url>
+        <name>CDAP</name>
+        <url>http://cdap.io</url>
     </organization>
 
     <licenses>
@@ -50,78 +45,18 @@
 
     <developers>
         <developer>
-            <id>chtyim</id>
-            <name>Terence Yim</name>
-            <email>chtyim@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>anew</id>
-            <name>Andreas Neumann</name>
-            <email>anew@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>garyh</id>
-            <name>Gary Helmling</name>
-            <email>garyh@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>ashau</id>
-            <name>Albert Shau</name>
-            <email>ashau@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>poorna</id>
-            <name>Poorna Chandra</name>
-            <email>poorna@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>hsaputra</id>
-            <name>Henry Saputra</name>
-            <email>hsaputra@apache.org</email>
-            <roles>
-                <role>PMC</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>anwar</id>
-            <name>Ali Anwar</name>
-            <email>anwar@apache.org</email>
-            <roles>
-                <role>Committer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>serrano</id>
-            <name>Martin Serrano</name>
-            <email>serrano@apache.org</email>
-            <roles>
-                <role>Committer</role>
-            </roles>
-        </developer>
-        <developer>
-            <id>yufeldman</id>
-            <name>Yuliya Feldman</name>
-            <email>yufeldman@apache.org</email>
-            <roles>
-                <role>Committer</role>
-            </roles>
+            <name>CDAP</name>
+            <email>cdap-dev@googlegroups.com</email>
+            <organization>CDAP</organization>
+            <organizationUrl>http://cdap.io</organizationUrl>
         </developer>
     </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/cdapio/twill.git</connection>
+        <developerConnection>scm:git:git@github.com:cdapio/twill.git</developerConnection>
+        <url>https://github.com/cdapio/twill</url>
+    </scm>
 
     <modules>
         <module>twill-common</module>
@@ -137,30 +72,8 @@
 
 
     <issueManagement>
-        <url>https://issues.apache.org/jira/browse/TWILL</url>
+        <url>https://cdap.atlassian.net/browse/CDAP</url>
     </issueManagement>
-    <mailingLists>
-        <mailingList>
-            <name>Development</name>
-            <post>dev@twill.apache.org</post>
-            <subscribe>dev-subscribe@twill.apache.org</subscribe>
-            <unsubscribe>dev-unsubscribe@twill.apache.org</unsubscribe>
-            <archive>http://mail-archives.apache.org/mod_mbox/twill-dev/</archive>
-            <otherArchives>
-                <otherArchive>http://twill-dev.markmail.org</otherArchive>
-            </otherArchives>
-        </mailingList>
-        <mailingList>
-            <name>Commits</name>
-            <post>commits@twill.apache.org</post>
-            <subscribe>commits-subscribe@twill.apache.org</subscribe>
-            <unsubscribe>commits-unsubscribe@twill.apache.org</unsubscribe>
-            <archive>http://mail-archives.apache.org/mod_mbox/twill-commits/</archive>
-            <otherArchives>
-                <otherArchive>http://twill-commits.markmail.org</otherArchive>
-            </otherArchives>
-        </mailingList>
-    </mailingLists>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -182,12 +95,6 @@
         <commons-compress.version>1.5</commons-compress.version>
         <force.mac.tests>false</force.mac.tests>
     </properties>
-
-    <scm>
-        <connection>scm:git:https://git-wip-us.apache.org/repos/asf/twill.git</connection>
-        <url>https://git-wip-us.apache.org/repos/asf?p=twill.git;a=summary</url>
-        <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/twill.git</developerConnection>
-    </scm>
 
     <build>
         <pluginManagement>
