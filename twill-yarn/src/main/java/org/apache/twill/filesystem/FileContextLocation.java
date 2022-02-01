@@ -19,7 +19,6 @@ package org.apache.twill.filesystem;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileContext;
@@ -41,7 +40,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-
 import javax.annotation.Nullable;
 
 /**

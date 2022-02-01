@@ -18,9 +18,7 @@
 package org.apache.twill.filesystem;
 
 import com.google.common.base.Throwables;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hdfs.HAUtil;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -35,13 +33,19 @@ final class FileContextLocationUtil {
   // To check whether logical URI is needed, hdfs.HAUtil class is used. But the class is meant for internal purposes,
   // and in Hadoop 2.8, the method was renamed from "isLogicalUri" to "useLogicalUri". So resolve to the
   // correct method.
+  // In Hadoop 3.0 and above, HAUtil is not available, instead HAUtilClient should be used
   private static final MethodHandle HA_UTIL_USE_LOGICAL_URI_HANDLE;
 
-  private static MethodHandle lookupInHAUtil(final String methodName)
-      throws NoSuchMethodException, IllegalAccessException {
-    return MethodHandles.publicLookup()
-        .findStatic(HAUtil.class, methodName,
-            MethodType.methodType(boolean.class, new Class[]{Configuration.class, URI.class}));
+  private static MethodHandle lookupInHAUtil(String className, String methodName)
+    throws NoSuchMethodException, IllegalAccessException, ClassNotFoundException {
+    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+    if (cl == null) {
+      cl = FileContextLocationUtil.class.getClassLoader();
+    }
+    Class<?> utilClass = cl.loadClass(className);
+    return MethodHandles.publicLookup().findStatic(
+      utilClass, methodName,
+      MethodType.methodType(boolean.class, new Class[]{Configuration.class, URI.class}));
   }
 
   static {
@@ -49,23 +53,31 @@ final class FileContextLocationUtil {
     try {
       try {
         // hadoop version < 2.8
-        handle = lookupInHAUtil("isLogicalUri");
-      } catch (NoSuchMethodException ignored) {
+        handle = lookupInHAUtil("org.apache.hadoop.hdfs.HAUtil", "isLogicalUri");
+      } catch (ClassNotFoundException | NoSuchMethodException ignored) {
         try {
           // hadoop version = 2.8
-          handle = lookupInHAUtil("useLogicalUri");
-        } catch (NoSuchMethodException e) {
-          throw Throwables.propagate(e);
+          handle = lookupInHAUtil("org.apache.hadoop.hdfs.HAUtil", "useLogicalUri");
+        } catch (ClassNotFoundException | NoSuchMethodException ignored1) {
+          try {
+            // hadoop version >= 3.0
+            handle = lookupInHAUtil("org.apache.hadoop.hdfs.HAUtilClient", "isLogicalUri");
+          } catch (ClassNotFoundException | NoSuchMethodException ex) {
+            handle = null;
+          }
         }
       }
     } catch (IllegalAccessException e) {
-      throw Throwables.propagate(e);
+      handle = null;
     }
     HA_UTIL_USE_LOGICAL_URI_HANDLE = handle;
   }
 
   static boolean useLogicalUri(final Configuration configuration, final URI uri) {
     try {
+      if (HA_UTIL_USE_LOGICAL_URI_HANDLE == null) {
+        return false;
+      }
       return (Boolean) HA_UTIL_USE_LOGICAL_URI_HANDLE.invoke(configuration, uri);
     } catch (Throwable e) {
       throw Throwables.propagate(e);
