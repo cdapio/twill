@@ -22,10 +22,13 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.apache.twill.api.Command;
+import org.apache.twill.api.ServiceController;
 import org.apache.twill.api.logging.LogEntry;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -35,16 +38,43 @@ public final class SystemMessages {
 
   public static final String SET_LOG_LEVEL = "setLogLevels";
   public static final String RESET_LOG_LEVEL = "resetLogLevels";
-  public static final Command STOP_COMMAND = Command.Builder.of("stop").build();
+
+  private static final String STOP = "stop";
+  private static final String TIMEOUT = "timeout";
+
   public static final Message SECURE_STORE_UPDATED = new SimpleMessage(
     Message.Type.SYSTEM, Message.Scope.APPLICATION, null, Command.Builder.of("secureStoreUpdated").build());
 
-  public static Message stopApplication() {
-    return new SimpleMessage(Message.Type.SYSTEM, Message.Scope.APPLICATION, null, STOP_COMMAND);
+  /**
+   * Creates a {@link Message} representing a stop application request.
+   *
+   * @param gracefulTimeoutMillis the graceful timeout in milliseconds
+   * @see ServiceController#terminate(long, TimeUnit)
+   */
+  public static Message stopApplication(long gracefulTimeoutMillis) {
+    Command command = Command.Builder.of(STOP).addOption(TIMEOUT, Long.toString(gracefulTimeoutMillis)).build();
+    return new SimpleMessage(Message.Type.SYSTEM, Message.Scope.APPLICATION, null, command);
   }
 
-  public static Message stopRunnable(String runnableName) {
-    return new SimpleMessage(Message.Type.SYSTEM, Message.Scope.RUNNABLE, runnableName, STOP_COMMAND);
+  /**
+   * Returns {@code true} if the given command is a stop request.
+   */
+  public static boolean isStopCommand(Command command) {
+    return STOP.equals(command.getCommand());
+  }
+
+  /**
+   * Returns the timeout in milliseconds based on the {@code timeout} option from the given command.
+   *
+   * @param command the {@link Command} to get the timeout from
+   * @param defaultTimeout the default timeout value if it is missing from the given command
+   * @param timeoutUnit the {@link TimeUnit} of the default timeout value
+   * @return the graceful timeout in milliseconds
+   */
+  public static long getTimeoutMillis(Command command, long defaultTimeout, TimeUnit timeoutUnit) {
+    return Optional.ofNullable(command.getOptions().get(TIMEOUT))
+      .map(Long::parseLong)
+      .orElse(timeoutUnit.toMillis(defaultTimeout));
   }
 
   public static Message setInstances(String runnableName, int instances) {

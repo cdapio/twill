@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -75,19 +76,15 @@ public abstract class AbstractZKServiceController extends AbstractExecutionServi
     doStartUp();
 
     // Watch for instance node existence.
-    actOnExists(getInstancePath(), new Runnable() {
-      @Override
-      public void run() {
-        watchInstanceNode();
-      }
-    });
+    actOnExists(getInstancePath(), this::watchInstanceNode);
   }
 
   @Override
   protected final synchronized void shutDown() {
     if (stopMessageFuture == null) {
+      long timeoutMillis = getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
       stopMessageFuture = ZKMessages.sendMessage(zkClient, getMessagePrefix(),
-                                                 SystemMessages.stopApplication(), State.TERMINATED);
+                                                 SystemMessages.stopApplication(timeoutMillis), State.TERMINATED);
     }
 
     // Cancel all pending message futures.
@@ -112,16 +109,13 @@ public abstract class AbstractZKServiceController extends AbstractExecutionServi
     }
     final ListenableFuture<V> messageFuture = ZKMessages.sendMessage(zkClient, getMessagePrefix(), message, result);
     messageFutures.add(messageFuture);
-    messageFuture.addListener(new Runnable() {
-      @Override
-      public void run() {
-        // If the completion is triggered when stopping, do nothing.
-        if (state() == State.STOPPING) {
-          return;
-        }
-        synchronized (AbstractZKServiceController.this) {
-          messageFutures.remove(messageFuture);
-        }
+    messageFuture.addListener(() -> {
+      // If the completion is triggered when stopping, do nothing.
+      if (state() == State.STOPPING) {
+        return;
+      }
+      synchronized (AbstractZKServiceController.this) {
+        messageFutures.remove(messageFuture);
       }
     }, Threads.SAME_THREAD_EXECUTOR);
 
@@ -167,17 +161,14 @@ public abstract class AbstractZKServiceController extends AbstractExecutionServi
   private void actOnExists(final String path, final Runnable action) {
     // Watch for node existence.
     final AtomicBoolean nodeExists = new AtomicBoolean(false);
-    Futures.addCallback(zkClient.exists(path, new Watcher() {
-      @Override
-      public void process(WatchedEvent event) {
-        if (!shouldProcessZKEvent()) {
-          return;
-        }
-        // When node is created, call the action.
-        // Other event type would be handled by the action.
-        if (event.getType() == Event.EventType.NodeCreated && nodeExists.compareAndSet(false, true)) {
-          action.run();
-        }
+    Futures.addCallback(zkClient.exists(path, event -> {
+      if (!shouldProcessZKEvent()) {
+        return;
+      }
+      // When node is created, call the action.
+      // Other event type would be handled by the action.
+      if (event.getType() == Watcher.Event.EventType.NodeCreated && nodeExists.compareAndSet(false, true)) {
+        action.run();
       }
     }), new FutureCallback<Stat>() {
       @Override
@@ -199,22 +190,19 @@ public abstract class AbstractZKServiceController extends AbstractExecutionServi
     if (!shouldProcessZKEvent()) {
       return;
     }
-    Futures.addCallback(zkClient.getData(getInstancePath(), new Watcher() {
-      @Override
-      public void process(WatchedEvent event) {
-        if (!shouldProcessZKEvent()) {
-          return;
-        }
-        switch (event.getType()) {
-          case NodeDataChanged:
-            watchInstanceNode();
-            break;
-          case NodeDeleted:
-            instanceNodeFailed(KeeperException.create(KeeperException.Code.NONODE, getInstancePath()));
-            break;
-          default:
-            LOG.info("Ignore ZK event for instance node: {}", event);
-        }
+    Futures.addCallback(zkClient.getData(getInstancePath(), event -> {
+      if (!shouldProcessZKEvent()) {
+        return;
+      }
+      switch (event.getType()) {
+        case NodeDataChanged:
+          watchInstanceNode();
+          break;
+        case NodeDeleted:
+          instanceNodeFailed(KeeperException.create(KeeperException.Code.NONODE, getInstancePath()));
+          break;
+        default:
+          LOG.info("Ignore ZK event for instance node: {}", event);
       }
     }), instanceNodeDataCallback, Threads.SAME_THREAD_EXECUTOR);
   }

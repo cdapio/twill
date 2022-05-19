@@ -53,6 +53,7 @@ public final class BasicTwillContext implements TwillContext {
   private final ZKClient zkClient;
   private final ElectionRegistry elections;
   private volatile int instanceCount;
+  private volatile long terminationTimeoutMillis;
 
   public BasicTwillContext(RunId runId, RunId appRunId, InetAddress host, String[] args, String[] appArgs,
                            TwillRunnableSpecification spec, int instanceId,
@@ -73,6 +74,7 @@ public final class BasicTwillContext implements TwillContext {
     this.instanceCount = instanceCount;
     this.allowedMemoryMB = allowedMemoryMB;
     this.virtualCores = virtualCores;
+    this.terminationTimeoutMillis = -1L;
   }
 
   @Override
@@ -159,5 +161,18 @@ public final class BasicTwillContext implements TwillContext {
    */
   public void stop() {
     elections.shutdown();
+  }
+
+  public void setTerminationTimeoutMillis(long terminationTimeoutMillis) {
+    this.terminationTimeoutMillis = terminationTimeoutMillis;
+  }
+
+  @Override
+  public long getTerminationTimeoutMillis() {
+    long timeout = this.terminationTimeoutMillis;
+    if (timeout < 0) {
+      throw new IllegalStateException("Terminate was not issued");
+    }
+    return timeout;
   }
 }

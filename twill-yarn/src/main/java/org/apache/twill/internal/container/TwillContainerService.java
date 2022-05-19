@@ -33,6 +33,7 @@ import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.common.Threads;
 import org.apache.twill.filesystem.Location;
 import org.apache.twill.internal.BasicTwillContext;
+import org.apache.twill.internal.Constants;
 import org.apache.twill.internal.ContainerInfo;
 import org.apache.twill.internal.ContainerLiveNodeData;
 import org.apache.twill.internal.state.Message;
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -223,7 +225,7 @@ public final class TwillContainerService extends AbstractYarnTwillService {
   }
 
   @Override
-  protected void doStop() throws Exception {
+  protected void doStop(long terminationTimeoutMillis) throws Exception {
     commandExecutor.shutdownNow();
     try {
       runnable.destroy();
@@ -239,6 +241,8 @@ public final class TwillContainerService extends AbstractYarnTwillService {
   @Override
   protected void triggerShutdown() {
     try {
+      context.setTerminationTimeoutMillis(getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS,
+                                                                      TimeUnit.SECONDS));
       runnable.stop();
     } catch (Throwable t) {
       LOG.error("Exception when stopping runnable.", t);
