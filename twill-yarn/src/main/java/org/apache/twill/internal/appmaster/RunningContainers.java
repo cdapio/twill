@@ -33,7 +33,6 @@ import com.google.common.collect.Table;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -78,6 +77,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -260,7 +261,10 @@ final class RunningContainers {
 
     LOG.info("Stopping service: {} {}", runnableName, controller.getRunId());
     // This call will block until handleCompleted() method runs or a timeout occurs
-    controller.stopAndWait();
+    // The default timeout will be used currently. If we want to support a customizable timeout,
+    // modify the SystemMessages class to allow a timeout value to be passed in the restart runnable command.
+    // The timeout value from the command can then be passed to this method from the ApplicationMasterService.
+    Futures.getUnchecked(controller.terminate());
 
     // Remove the stopped container state if it exists (in the case of killing the container due to timeout)
     containerLock.lock();
@@ -375,7 +379,7 @@ final class RunningContainers {
   /**
    * Stops all running services. Only called when the AppMaster stops.
    */
-  void stopAll() {
+  void stopAll(long terminationTimeoutMillis) {
     containerLock.lock();
     // Stop the runnables one by one in reverse order of start sequence
     List<String> reverseRunnables = new LinkedList<>();
@@ -385,23 +389,30 @@ final class RunningContainers {
       containerLock.unlock();
     }
 
-    List<ListenableFuture<Service.State>> futures = Lists.newLinkedList();
     for (String runnableName : reverseRunnables) {
       LOG.info("Stopping all instances of " + runnableName);
 
-      futures.clear();
+      List<Future<?>> futures = new ArrayList<>();
+
       // Parallel stops all running containers of the current runnable.
       containerLock.lock();
       try {
         for (TwillContainerController controller : containers.row(runnableName).values()) {
-          futures.add(controller.stop());
+          futures.add(controller.terminate(terminationTimeoutMillis, TimeUnit.MILLISECONDS));
         }
       } finally {
         containerLock.unlock();
       }
-      // Wait for containers to stop. Assumes the future returned by Futures.successfulAsList won't throw exception.
+
+      // Wait for all containers of a runnable to stop.
       // This will block until handleCompleted() is run for the runnables or a timeout occurs.
-      Futures.getUnchecked(Futures.successfulAsList(futures));
+      for (Future<?> future : futures) {
+        try {
+          future.get(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+          LOG.warn("Exception raised when terminating a container for runnable {}", runnableName, e);
+        }
+      }
 
       LOG.info("Terminated all instances of " + runnableName);
     }

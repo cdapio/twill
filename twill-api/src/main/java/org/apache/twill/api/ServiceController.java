@@ -64,6 +64,24 @@ public interface ServiceController {
   Future<? extends ServiceController> terminate();
 
   /**
+   * Requests to terminate the running service. The service will be given chance to shutdown gracefully
+   * in the given {@code gracefulTimeout} time.
+   *
+   * This method returns immediately and caller can get the termination state through the future returned.
+   * Calling this method multiple times is allowed and a {@link Future} representing the termination state
+   * will be returned.
+   *
+   * @param gracefulTimeout the maximum time that it allows the service to terminate gracefully
+   * @param gracefulTimeoutUnit the {@link TimeUnit} for the {@code gracefuleTimeout}
+   * @return a {@link Future} that represents the termination of the service. The future result will be
+   * this {@link ServiceController}. If the service terminated with a {@link TerminationStatus#FAILED} status,
+   * calling the {@link Future#get()} on the returning future will throw {@link ExecutionException}.
+   */
+  default Future<? extends ServiceController> terminate(long gracefulTimeout, TimeUnit gracefulTimeoutUnit) {
+    return terminate();
+  }
+
+  /**
    * Requests to forcefully kill a running service.
    */
   void kill();

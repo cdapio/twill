@@ -174,8 +174,8 @@ public class ControllerTest {
       }
 
       @Override
-      protected void doStop() throws Exception {
-        LOG.info("Stop");
+      protected void doStop(long terminationTimeMillis) throws Exception {
+        LOG.info("Stop with timeout {} ms", terminationTimeMillis);
       }
 
       @Override

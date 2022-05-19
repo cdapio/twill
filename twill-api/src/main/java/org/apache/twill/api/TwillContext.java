@@ -104,4 +104,14 @@ public interface TwillContext extends ServiceAnnouncer, DiscoveryServiceClient {
    * @return A {@link Lock} object
    */
   Lock createLock(String name);
+
+  /**
+   * Returns the graceful timeout in milliseconds for the termination.
+   *
+   * @throws IllegalStateException if no termination was issued for the {@link TwillRunnable}
+   */
+  default long getTerminationTimeoutMillis() {
+    // Expected subclass to implement it
+    throw new UnsupportedOperationException();
+  }
 }

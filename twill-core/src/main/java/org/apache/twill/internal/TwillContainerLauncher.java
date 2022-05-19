@@ -162,7 +162,7 @@ public final class TwillContainerLauncher {
     List<String> command = commandBuilder.build();
 
     ProcessController<Void> processController = launchContext
-      .addCommand(firstCommand, command.toArray(new String[command.size()]))
+      .addCommand(firstCommand, command.toArray(new String[0]))
       .launch();
 
     TwillContainerControllerImpl controller =
@@ -194,8 +194,8 @@ public final class TwillContainerLauncher {
     private final CountDownLatch shutdownLatch;
     private volatile ContainerLiveNodeData liveData;
 
-    protected TwillContainerControllerImpl(ZKClient zkClient, RunId runId, String runnable, int instanceId,
-                                           ProcessController<Void> processController) {
+    private TwillContainerControllerImpl(ZKClient zkClient, RunId runId, String runnable, int instanceId,
+                                         ProcessController<Void> processController) {
       super(runId, zkClient);
       this.runnable = runnable;
       this.instanceId = instanceId;
@@ -210,12 +210,14 @@ public final class TwillContainerLauncher {
 
     @Override
     protected void doShutDown() {
-      // Wait for sometime for the container to stop
-      // TODO: Use configurable value for stop time (TWILL-192)
-      int maxWaitSecs = Constants.APPLICATION_MAX_STOP_SECONDS - 30;
-      maxWaitSecs = maxWaitSecs < 15 ? 15 : maxWaitSecs;
+      // Wait for sometime for the container to stop. Subtracts 15 seconds from the timeout to accommodate for
+      // the message propagation delay.
+      long timeoutSeconds = TimeUnit.MILLISECONDS.toSeconds(
+        getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS));
+      timeoutSeconds = timeoutSeconds < 30L ? timeoutSeconds : timeoutSeconds - 15L;
+
       try {
-        if (Uninterruptibles.awaitUninterruptibly(shutdownLatch, maxWaitSecs, TimeUnit.SECONDS)) {
+        if (Uninterruptibles.awaitUninterruptibly(shutdownLatch, timeoutSeconds, TimeUnit.SECONDS)) {
           return;
         }
       } catch (Exception e) {
@@ -223,8 +225,8 @@ public final class TwillContainerLauncher {
       }
       // Container has not shutdown even after maxWaitSecs after sending stop message,
       // we'll need to kill the container
-      LOG.warn("Killing runnable {}, instance {} after waiting {} secs", runnable, instanceId, maxWaitSecs);
-      killAndWait(maxWaitSecs);
+      LOG.warn("Killing runnable {}, instance {} after waiting {} secs", runnable, instanceId, timeoutSeconds);
+      killAndWait(timeoutSeconds);
     }
 
     @Override
@@ -289,7 +291,7 @@ public final class TwillContainerLauncher {
       return instanceId;
     }
 
-    private void killAndWait(int maxWaitSecs) {
+    private void killAndWait(long maxWaitSecs) {
       Stopwatch watch = new Stopwatch();
       watch.start();
       while (watch.elapsedTime(TimeUnit.SECONDS) < maxWaitSecs) {

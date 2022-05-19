@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A base implementation of {@link Service} that uses ZooKeeper to transmit states and messages. It uses
@@ -89,12 +90,14 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
 
   protected final ZKClient zkClient;
   protected final RunId runId;
+  private final AtomicLong terminationTimeoutMillis;
   private ExecutorService messageCallbackExecutor;
   private Cancellable watcherCancellable;
 
   protected AbstractTwillService(final ZKClient zkClient, RunId runId) {
     this.zkClient = zkClient;
     this.runId = runId;
+    this.terminationTimeoutMillis = new AtomicLong(-1L);
   }
 
   /**
@@ -114,7 +117,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   /**
    * Overrides to perform any work during service shutdown.
    */
-  protected void doStop() throws Exception {
+  protected void doStop(long terminationTimeoutMillis) throws Exception {
     // Default no-op
   }
 
@@ -197,7 +200,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
 
     messageCallbackExecutor.shutdownNow();
     try {
-      doStop();
+      doStop(getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS));
     } finally {
       // Given at most 5 seconds to cleanup ZK nodes
       removeLiveNode().get(5, TimeUnit.SECONDS);
@@ -215,6 +218,18 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     LOG.info("Update live node {}{}", zkClient.getConnectString(), liveNodePath);
     return zkClient.setData(liveNodePath, serializeLiveNode());
   }
+
+  /**
+   * Returns the graceful timeout in milliseconds for the termination.
+   *
+   * @param defaultTimeout the default timeout to return if the termination timeout was not set
+   * @param timeoutUnit the {@link TimeUnit} for the default timeout
+   */
+  protected final long getTerminationTimeoutMillis(long defaultTimeout, TimeUnit timeoutUnit) {
+    long timeoutMillis = terminationTimeoutMillis.get();
+    return timeoutMillis >= 0 ? timeoutMillis : timeoutUnit.toMillis(defaultTimeout);
+  }
+
 
   /**
    * Creates the live node for the service. If the node already exists, it will be deleted before creation.
@@ -296,7 +311,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   }
 
   /**
-   * Handles {@link SystemMessages#STOP_COMMAND} if the given message is a stop command. After this service is stopped,
+   * Handles stop request if the given message is a stop command. After this service is stopped,
    * the message node will be removed.
    *
    * @param message Message to process
@@ -304,9 +319,13 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
    * @return {@code true} if the given message is a stop command, {@code false} otherwise
    */
   private boolean handleStopMessage(Message message, final Runnable messageRemover) {
-    if (message.getType() != Message.Type.SYSTEM || !SystemMessages.STOP_COMMAND.equals(message.getCommand())) {
+    if (message.getType() != Message.Type.SYSTEM || !SystemMessages.isStopCommand(message.getCommand())) {
       return false;
     }
+
+    long timeoutMillis = SystemMessages.getTimeoutMillis(message.getCommand(),
+                                                         Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
+    terminationTimeoutMillis.compareAndSet(-1L, timeoutMillis);
 
     // Stop this service.
     Futures.addCallback(stop(), new FutureCallback<State>() {

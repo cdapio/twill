@@ -79,14 +79,10 @@ final class YarnTwillController extends AbstractTwillController implements Twill
    */
   YarnTwillController(String appName, RunId runId, ZKClient zkClient,
                       final ApplicationMasterLiveNodeData amLiveNodeData, final YarnAppClient yarnAppClient) {
-    super(appName, runId, zkClient, amLiveNodeData.getKafkaZKConnect() != null, Collections.<LogHandler>emptyList());
-    this.appName = appName;
-    this.amLiveNodeData = amLiveNodeData;
-    this.startUp = () -> yarnAppClient.createProcessController(
-      ApplicationId.newInstance(amLiveNodeData.getAppIdClusterTime(),
-                                amLiveNodeData.getAppId()));
-    this.startTimeout = Constants.APPLICATION_MAX_START_SECONDS;
-    this.startTimeoutUnit = TimeUnit.SECONDS;
+    this(appName, runId, zkClient, amLiveNodeData.getKafkaZKConnect() != null, Collections.emptyList(),
+         () -> yarnAppClient.createProcessController(ApplicationId.newInstance(amLiveNodeData.getAppIdClusterTime(),
+                                                                               amLiveNodeData.getAppId())),
+         Constants.APPLICATION_MAX_START_SECONDS, TimeUnit.SECONDS);
   }
 
   YarnTwillController(String appName, RunId runId, ZKClient zkClient, boolean logCollectionEnabled,
@@ -156,9 +152,9 @@ final class YarnTwillController extends AbstractTwillController implements Twill
     stopPollStatus();
 
     // Wait for the stop message being processed
+    long timeoutMillis = getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
     try {
-      Uninterruptibles.getUninterruptibly(getStopMessageFuture(),
-                                          Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
+      Uninterruptibles.getUninterruptibly(getStopMessageFuture(), timeoutMillis, TimeUnit.MILLISECONDS);
     } catch (Exception e) {
       LOG.error("Failed to wait for stop message being processed.", e);
       // Kill the application through yarn
@@ -169,13 +165,12 @@ final class YarnTwillController extends AbstractTwillController implements Twill
     // Poll application status from yarn
     try (ProcessController<YarnApplicationReport> processController = this.processController) {
       Stopwatch stopWatch = new Stopwatch().start();
-      long maxTime = TimeUnit.MILLISECONDS.convert(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
 
       YarnApplicationReport report = processController.getReport();
       finalStatus = report.getFinalApplicationStatus();
       ApplicationId appId = report.getApplicationId();
       while (finalStatus == FinalApplicationStatus.UNDEFINED &&
-          stopWatch.elapsedTime(TimeUnit.MILLISECONDS) < maxTime) {
+          stopWatch.elapsedTime(TimeUnit.MILLISECONDS) < timeoutMillis) {
         LOG.debug("Yarn application final status for {} {}: {}", appName, appId, finalStatus);
         TimeUnit.SECONDS.sleep(1);
         finalStatus = processController.getReport().getFinalApplicationStatus();

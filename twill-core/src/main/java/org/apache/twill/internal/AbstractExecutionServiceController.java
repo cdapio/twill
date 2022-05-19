@@ -35,6 +35,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
@@ -48,6 +49,7 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
   private final ListenerExecutors listenerExecutors;
   private final Service serviceDelegate;
   private final SettableFuture<State> terminationFuture;
+  private final AtomicLong terminationTimeoutMillis;
   private volatile TerminationStatus terminationStatus;
 
   protected AbstractExecutionServiceController(RunId runId) {
@@ -55,6 +57,7 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     this.listenerExecutors = new ListenerExecutors();
     this.serviceDelegate = new ServiceDelegate();
     this.terminationFuture = SettableFuture.create();
+    this.terminationTimeoutMillis = new AtomicLong(-1L);
     addListener(new ServiceListenerAdapter() {
       @Override
       public void failed(State from, Throwable failure) {
@@ -79,14 +82,20 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
 
   @Override
   public Future<? extends ServiceController> terminate() {
-    stop();
+    return terminate(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
+  }
 
-    return Futures.transform(terminationFuture, new Function<State, ServiceController>() {
-      @Override
-      public ServiceController apply(State input) {
-        return AbstractExecutionServiceController.this;
-      }
-    });
+  @Override
+  public Future<? extends ServiceController> terminate(long gracefulTimeout, TimeUnit gracefulTimeoutUnit) {
+    long timeout = gracefulTimeoutUnit.toMillis(gracefulTimeout);
+    if (timeout < 0) {
+      throw new IllegalArgumentException("Graceful timeout value must not be negative");
+    }
+
+    terminationTimeoutMillis.compareAndSet(-1L, timeout);
+    stop();
+    return Futures.transform(terminationFuture,
+                             (Function<State, ServiceController>) input -> AbstractExecutionServiceController.this);
   }
 
   @Nullable
@@ -178,6 +187,17 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
 
   protected final void setTerminationStatus(TerminationStatus status) {
     this.terminationStatus = status;
+  }
+
+  /**
+   * Returns the graceful timeout in milliseconds for the termination.
+   *
+   * @param defaultTimeout the default timeout to return if the termination timeout was not set
+   * @param timeoutUnit the {@link TimeUnit} for the default timeout
+   */
+  protected final long getTerminationTimeoutMillis(long defaultTimeout, TimeUnit timeoutUnit) {
+    long timeoutMillis = terminationTimeoutMillis.get();
+    return timeoutMillis >= 0 ? timeoutMillis : timeoutUnit.toMillis(defaultTimeout);
   }
 
 

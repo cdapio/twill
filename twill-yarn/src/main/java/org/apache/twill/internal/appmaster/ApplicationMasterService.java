@@ -331,7 +331,7 @@ public final class ApplicationMasterService extends AbstractYarnTwillService imp
   }
 
   @Override
-  protected void doStop() throws Exception {
+  protected void doStop(long terminationTimeoutMillis) {
     Thread.interrupted();     // This is just to clear the interrupt flag
 
     LOG.info("Stop application master with spec: {}",
@@ -376,7 +376,7 @@ public final class ApplicationMasterService extends AbstractYarnTwillService imp
     });
 
     // runningContainers.stopAll() will wait for all the running runnables to stop or kill them after a timeout
-    runningContainers.stopAll();
+    runningContainers.stopAll(terminationTimeoutMillis);
     // Since all the runnables are now stopped, it is okay to stop the poller.
     stopPoller.shutdownNow();
     cleanupDir();
