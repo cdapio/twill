@@ -18,14 +18,23 @@
 package org.apache.twill.filesystem;
 
 import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  *
  */
 public class LocalLocationTest extends LocationTestBase {
+
+  @ClassRule
+  public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
   @Override
   protected LocationFactory createLocationFactory(String pathBase) throws Exception {
@@ -39,5 +48,28 @@ public class LocalLocationTest extends LocationTestBase {
   protected UserGroupInformation createTestUGI() throws IOException {
     // In local location, UGI is not supported, hence using the current user as the testing ugi.
     return UserGroupInformation.getCurrentUser();
+  }
+
+  @Test
+  public void testLastModified() throws IOException, InterruptedException {
+    LocationFactory lf = new LocalLocationFactory(TEMP_FOLDER.newFolder());
+    Location location = lf.create("test1");
+    String message = "message";
+    try (OutputStream os = location.getOutputStream()) {
+      os.write(message.getBytes(StandardCharsets.UTF_8));
+    }
+    long initialModificationTimestamp = location.lastModified();
+
+    // Modify file, last modified time should get updated.
+    // Sleep for a while, in case the filesystem is very fast.
+    Thread.sleep(1);
+    try (OutputStream os = location.getOutputStream()) {
+      os.write(message.getBytes(StandardCharsets.UTF_8));
+    }
+    long secondModificationTimestamp = location.lastModified();
+    Assert.assertTrue(String.format(
+                        "initialModificationTimestamp(%d) is not less than secondModificationTimestamp(%d)",
+                        initialModificationTimestamp, secondModificationTimestamp),
+                      initialModificationTimestamp < secondModificationTimestamp);
   }
 }
