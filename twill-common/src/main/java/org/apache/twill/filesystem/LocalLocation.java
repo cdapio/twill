@@ -288,12 +288,14 @@ final class LocalLocation implements Location {
   }
 
   @Override
-  public long lastModified() {
-    return file.lastModified();
+  public long lastModified() throws IOException {
+    // Use Files.getLastModifiedTime() instead of file.lastModified() as file object caches
+    // the last modified time and doesn't update the value when the underlying file has changed.
+    return Files.getLastModifiedTime(file.toPath()).toMillis();
   }
 
   @Override
-  public boolean isDirectory() throws IOException {
+  public boolean isDirectory() {
     return file.isDirectory();
   }
 
