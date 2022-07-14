@@ -24,7 +24,7 @@
     <parent>
         <artifactId>twill-parent</artifactId>
         <groupId>io.cdap.twill</groupId>
-        <version>1.1.1</version>
+        <version>1.1.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>twill-java8-test</artifactId>
