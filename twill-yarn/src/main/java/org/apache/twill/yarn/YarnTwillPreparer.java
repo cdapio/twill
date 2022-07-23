@@ -41,6 +41,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import joptsimple.OptionSpec;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -57,6 +58,7 @@ import org.apache.twill.api.TwillPreparer;
 import org.apache.twill.api.TwillSpecification;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.api.logging.LogHandler;
+import org.apache.twill.filesystem.FileContextLocationFactory;
 import org.apache.twill.filesystem.Location;
 import org.apache.twill.internal.ApplicationBundler;
 import org.apache.twill.internal.Arguments;
@@ -103,6 +105,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -441,9 +445,7 @@ final class YarnTwillPreparer implements TwillPreparer {
           }
         };
 
-      boolean logCollectionEnabled = config.getBoolean(Configs.Keys.LOG_COLLECTION_ENABLED,
-                                                       Configs.Defaults.LOG_COLLECTION_ENABLED);
-      YarnTwillController controller = controllerFactory.create(runId, logCollectionEnabled,
+      YarnTwillController controller = controllerFactory.create(runId, isLogCollectionEnabled(),
                                                                 logHandlers, submitTask, timeout, timeoutUnit);
       controller.start();
       return controller;
@@ -451,6 +453,13 @@ final class YarnTwillPreparer implements TwillPreparer {
       LOG.error("Failed to submit application {}", twillSpec.getName(), e);
       throw Throwables.propagate(e);
     }
+  }
+
+  /**
+   * Returns {@code true} if logs collection through twill is enabled.
+   */
+  private boolean isLogCollectionEnabled() {
+    return config.getBoolean(Configs.Keys.LOG_COLLECTION_ENABLED, Configs.Defaults.LOG_COLLECTION_ENABLED);
   }
 
   /**
@@ -547,9 +556,15 @@ final class YarnTwillPreparer implements TwillPreparer {
     Location location = locationCache.get(Constants.Files.TWILL_JAR, new LocationCache.Loader() {
       @Override
       public void load(String name, Location targetLocation) throws IOException {
+        List<Class<?>> depClasses = new ArrayList<>(Arrays.asList(ApplicationMasterMain.class,
+                                                                  yarnAppClient.getClass(), TwillContainerMain.class));
+
+        if (isLogCollectionEnabled()) {
+          depClasses.add(OptionSpec.class);
+        }
+
         // Stuck in the yarnAppClient class to make bundler being able to pickup the right yarn-client version
-        bundler.createBundle(targetLocation, ApplicationMasterMain.class,
-                             yarnAppClient.getClass(), TwillContainerMain.class, OptionSpec.class);
+        bundler.createBundle(targetLocation, depClasses);
       }
     });
 
@@ -657,18 +672,32 @@ final class YarnTwillPreparer implements TwillPreparer {
     for (Map.Entry<String, RuntimeSpecification> entry: twillSpec.getRunnables().entrySet()) {
       String runnableName = entry.getKey();
       for (LocalFile localFile : entry.getValue().getLocalFiles()) {
-        Location location;
+        Location location = null;
 
         URI uri = localFile.getURI();
         if (appLocation.toURI().getScheme().equals(uri.getScheme())) {
           // If the source file location is having the same scheme as the target location, no need to copy
           location = appLocation.getLocationFactory().create(uri);
         } else {
-          URL url = uri.toURL();
-          LOG.debug("Create and copy {} : {}", runnableName, url);
-          // Preserves original suffix for expansion.
-          location = copyFromURL(url, createTempLocation(Paths.addExtension(url.getFile(), localFile.getName())));
-          LOG.debug("Done {} : {}", runnableName, url);
+          if (!"file".equals(uri.getScheme())) {
+            try {
+              // If the source file location is reachable via FileContext and it is not a local file,
+              // We can localize using the location directly without copying
+              Configuration contextConf = new Configuration(config);
+              contextConf.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, uri.toString());
+              location = new FileContextLocationFactory(contextConf).create(uri);
+            } catch (Exception e) {
+              LOG.debug("Failed to localize file from {} directly. Resort to copying.", uri);
+            }
+          }
+
+          if (location == null) {
+            URL url = uri.toURL();
+            LOG.debug("Create and copy {} : {}", runnableName, url);
+            // Preserves original suffix for expansion.
+            location = copyFromURL(url, createTempLocation(Paths.addExtension(url.getFile(), localFile.getName())));
+            LOG.debug("Done {} : {}", runnableName, url);
+          }
         }
 
         localFiles.put(runnableName,
