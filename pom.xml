@@ -215,6 +215,7 @@
                             <exclude>src/test/resources/header.txt</exclude>
                             <exclude>**/zookeeper.out</exclude>
                             <exclude>twill-java8-test/target/**</exclude>
+                            <exclude>**/*.md</exclude>
                         </excludes>
                     </configuration>
                     <executions>
