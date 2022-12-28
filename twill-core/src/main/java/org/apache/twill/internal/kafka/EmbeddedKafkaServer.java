@@ -20,15 +20,20 @@ package org.apache.twill.internal.kafka;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
+import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
-import kafka.utils.Time;
 import org.I0Itec.zkclient.exception.ZkTimeoutException;
+import org.apache.kafka.common.utils.Time;
 import org.apache.twill.internal.utils.Networks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
+import scala.collection.JavaConverters;
 
 import java.net.BindException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -97,11 +102,17 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
   }
 
   private KafkaServer createKafkaServer(KafkaConfig kafkaConfig) {
+    List<KafkaMetricsReporter> reporters = new ArrayList<>();
     return new KafkaServer(kafkaConfig, new Time() {
 
       @Override
       public long milliseconds() {
         return System.currentTimeMillis();
+      }
+
+      @Override
+      public long hiResClockMs() {
+        return SYSTEM.hiResClockMs();
       }
 
       @Override
@@ -117,7 +128,7 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
           Thread.interrupted();
         }
       }
-    });
+    }, Option.empty(), JavaConverters.asScalaBufferConverter(reporters).asScala());
   }
 
   /**
