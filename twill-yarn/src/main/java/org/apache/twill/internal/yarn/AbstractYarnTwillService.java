@@ -99,9 +99,6 @@ public abstract class AbstractYarnTwillService extends AbstractTwillService {
       }
 
       UserGroupInformation.getCurrentUser().addCredentials(credentials);
-
-      // Clone the HDFS tokens for HA NameNode. This is to workaround bug HDFS-9276.
-      YarnUtils.cloneHaNnCredentials(config);
       this.credentials = credentials;
 
       LOG.info("Secure store updated from {}.", location);
