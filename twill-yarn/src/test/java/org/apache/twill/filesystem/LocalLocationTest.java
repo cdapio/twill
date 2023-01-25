@@ -62,7 +62,7 @@ public class LocalLocationTest extends LocationTestBase {
 
     // Modify file, last modified time should get updated.
     // Sleep for a while, in case the filesystem is very fast.
-    Thread.sleep(1);
+    Thread.sleep(1000);
     try (OutputStream os = location.getOutputStream()) {
       os.write(message.getBytes(StandardCharsets.UTF_8));
     }
