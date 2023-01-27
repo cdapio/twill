@@ -112,8 +112,6 @@
         <commons-compress.version>1.5</commons-compress.version>
         <force.mac.tests>false</force.mac.tests>
         <scala.version>2.12.10</scala.version>
-        <!-- Used by hadoop-hdfs. Keep up-to-date with version in hadoop-hdfs. -->
-        <mockito.version>1.8.5</mockito.version>
     </properties>
 
     <build>
@@ -562,38 +560,6 @@
             <properties>
                 <hadoop.version>2.6.5</hadoop.version>
             </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>1.8</version>
-                        <executions>
-                            <execution>
-                                <id>add-source</id>
-                                <phase>generate-sources</phase>
-                                <goals>
-                                    <goal>add-source</goal>
-                                </goals>
-                                <configuration>
-                                    <sources>
-                                        <source>src/main/hadoop21</source>
-                                        <source>src/main/hadoop22</source>
-                                        <source>src/main/hadoop23</source>
-                                        <source>src/main/hadoop26</source>
-                                    </sources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>hadoop-2.10</id>
-            <properties>
-                <hadoop.version>2.10.2</hadoop.version>
-            </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
@@ -616,7 +582,6 @@
                                         <source>src/main/hadoop22</source>
                                         <source>src/main/hadoop23</source>
                                         <source>src/main/hadoop26</source>
-                                        <source>src/main/hadoop210</source>
                                     </sources>
                                 </configuration>
                             </execution>
@@ -971,11 +936,6 @@
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
                 <version>${scala.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mockito</groupId>
-                <artifactId>mockito-all</artifactId>
-                <version>${mockito.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
