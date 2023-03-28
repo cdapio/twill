@@ -17,16 +17,10 @@
  */
 package org.apache.twill.internal;
 
-import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
 import org.apache.twill.api.ClassAcceptor;
 import org.apache.twill.filesystem.Location;
 import org.apache.twill.internal.utils.Dependencies;
@@ -36,17 +30,25 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedOutputStream;
 
@@ -58,10 +60,9 @@ public final class ApplicationBundler {
   private static final Logger LOG = LoggerFactory.getLogger(ApplicationBundler.class);
 
   private final ClassAcceptor classAcceptor;
-  private final Set<String> bootstrapClassPaths;
   private final CRC32 crc32;
 
-  private File tempDir;
+  private Path tempDir;
   private String classesDir;
   private String libDir;
   private String resourcesDir;
@@ -72,7 +73,7 @@ public final class ApplicationBundler {
    * @param excludePackages Class packages to exclude
    */
   public ApplicationBundler(Iterable<String> excludePackages) {
-    this(excludePackages, ImmutableList.<String>of());
+    this(excludePackages, Collections.emptyList());
   }
 
   /**
@@ -108,19 +109,8 @@ public final class ApplicationBundler {
    */
   public ApplicationBundler(ClassAcceptor classAcceptor) {
     this.classAcceptor = classAcceptor;
-    ImmutableSet.Builder<String> builder = ImmutableSet.builder();
-    for (String classpath : Splitter.on(File.pathSeparatorChar).split(System.getProperty("sun.boot.class.path"))) {
-      File file = new File(classpath);
-      builder.add(file.getAbsolutePath());
-      try {
-        builder.add(file.getCanonicalPath());
-      } catch (IOException e) {
-        // Ignore the exception and proceed.
-      }
-    }
-    this.bootstrapClassPaths = builder.build();
     this.crc32 = new CRC32();
-    this.tempDir = new File(System.getProperty("java.io.tmpdir"));
+    this.tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
     this.classesDir = "classes/";
     this.libDir = "lib/";
     this.resourcesDir = "resources/";
@@ -134,7 +124,7 @@ public final class ApplicationBundler {
     if (tempDir == null) {
       throw new IllegalArgumentException("Temporary directory cannot be null");
     }
-    this.tempDir = tempDir;
+    this.tempDir = tempDir.toPath();
     return this;
   }
 
@@ -178,13 +168,13 @@ public final class ApplicationBundler {
   }
 
   public void createBundle(Location target, Iterable<Class<?>> classes) throws IOException {
-    createBundle(target, classes, ImmutableList.<URI>of());
+    createBundle(target, classes, Collections.emptyList());
   }
 
   /**
    * Same as calling {@link #createBundle(Location, Iterable)}.
    */
-  public void createBundle(Location target, Class<?> clz, Class<?>...classes) throws IOException {
+  public void createBundle(Location target, Class<?> clz, Class<?>... classes) throws IOException {
     createBundle(target, ImmutableSet.<Class<?>>builder().add(clz).add(classes).build());
   }
 
@@ -202,11 +192,11 @@ public final class ApplicationBundler {
   public void createBundle(Location target, Iterable<Class<?>> classes, Iterable<URI> resources) throws IOException {
     LOG.debug("Start creating bundle at {}", target);
     // Write the jar to local tmp file first
-    File tmpJar = File.createTempFile(target.getName(), ".tmp", tempDir);
+    Path tmpJar = Files.createTempFile(tempDir, target.getName(), ".tmp");
     LOG.debug("First create bundle locally at {}", tmpJar);
     try {
-      Set<String> entries = Sets.newHashSet();
-      try (JarOutputStream jarOut = new JarOutputStream(new FileOutputStream(tmpJar))) {
+      Set<String> entries = new HashSet<>();
+      try (JarOutputStream jarOut = new JarOutputStream(Files.newOutputStream(tmpJar))) {
         // Find class dependencies
         findDependencies(classes, entries, jarOut);
 
@@ -215,7 +205,7 @@ public final class ApplicationBundler {
           copyResource(resource, entries, jarOut);
         }
       }
-      LOG.debug("Copying temporary bundle to destination {} ({} bytes)", target, tmpJar.length());
+      LOG.debug("Copying temporary bundle to destination {} ({} bytes)", target, Files.size(tmpJar));
       // Copy the tmp jar into destination.
       try (OutputStream os = new BufferedOutputStream(target.getOutputStream())) {
         Files.copy(tmpJar, os);
@@ -224,7 +214,7 @@ public final class ApplicationBundler {
       }
       LOG.debug("Finished creating bundle at {}", target);
     } finally {
-      if (!tmpJar.delete()) {
+      if (!Files.deleteIfExists(tmpJar)) {
         LOG.warn("Failed to cleanup local temporary file {}", tmpJar);
       } else {
         LOG.debug("Cleaned up local temporary file {}", tmpJar);
@@ -235,35 +225,47 @@ public final class ApplicationBundler {
   private void findDependencies(Iterable<Class<?>> classes, final Set<String> entries,
                                 final JarOutputStream jarOut) throws IOException {
 
-    Iterable<String> classNames = Iterables.transform(classes, new Function<Class<?>, String>() {
-      @Override
-      public String apply(Class<?> input) {
-        return input.getName();
-      }
-    });
-
     ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     if (classLoader == null) {
       classLoader = getClass().getClassLoader();
     }
 
     // Record the set of classpath URL that are already added to the jar
-    final Set<URL> seenClassPaths = Sets.newHashSet();
-    Dependencies.findClassDependencies(classLoader, new ClassAcceptor() {
-      @Override
-      public boolean accept(String className, URL classUrl, URL classPathUrl) {
-        if (bootstrapClassPaths.contains(classPathUrl.getFile())) {
-          return false;
+    Set<URL> seenClassPaths = new HashSet<>();
+    try (URLClassLoader platformClassloader = getPlatformClassLoader()) {
+      Dependencies.findClassDependencies(classLoader, new ClassAcceptor() {
+        @Override
+        public boolean accept(String className, URL classUrl, URL classPathUrl) {
+          // Ignore platform classes
+          if (platformClassloader.getResource(className.replace('.', '/') + ".class") != null) {
+            return false;
+          }
+          if (!classAcceptor.accept(className, classUrl, classPathUrl)) {
+            return false;
+          }
+          if (seenClassPaths.add(classPathUrl)) {
+            putEntry(className, classUrl, classPathUrl, entries, jarOut);
+          }
+          return true;
         }
-        if (!classAcceptor.accept(className, classUrl, classPathUrl)) {
-          return false;
-        }
-        if (seenClassPaths.add(classPathUrl)) {
-          putEntry(className, classUrl, classPathUrl, entries, jarOut);
-        }
-        return true;
-      }
-    }, classNames);
+      }, StreamSupport.stream(classes.spliterator(), false).map(Class::getName).collect(Collectors.toList()));
+    }
+  }
+
+  private URLClassLoader getPlatformClassLoader() {
+    ClassLoader platformClassloader;
+    try {
+      // For Java11+, there is a ClassLoader.getPlatformClassLoader() method to get the platform classloader
+      //noinspection JavaReflectionMemberAccess
+      platformClassloader = (ClassLoader) ClassLoader.class.getMethod("getPlatformClassLoader")
+        .invoke(null);
+    } catch (Exception e) {
+      // For Java8, the parent of the system classloader is the platform classloader (bootstrap + ext classloader)
+      platformClassloader = ClassLoader.getSystemClassLoader().getParent();
+    }
+    // Always warp it with a URLClassLoader to simplify handling of
+    // the potential `null` parent classloader in the Java 8 case.
+    return new URLClassLoader(new URL[0], platformClassloader);
   }
 
   private void putEntry(String className, URL classUrl, URL classPathUrl, Set<String> entries, JarOutputStream jarOut) {
@@ -372,17 +374,18 @@ public final class ApplicationBundler {
                        Set<String> entries, JarOutputStream jarOut) throws IOException {
     LOG.trace("adding whole dir {} to bundle at '{}'", baseDir, entryPrefix);
     URI baseUri = baseDir.toURI();
-    Queue<File> queue = Lists.newLinkedList();
+    Queue<File> queue = new LinkedList<>();
     queue.add(baseDir);
     while (!queue.isEmpty()) {
       File file = queue.remove();
 
       String entry = entryPrefix + baseUri.relativize(file.toURI()).getPath();
+      BasicFileAttributes fileAttrs = Files.readAttributes(file.toPath(), BasicFileAttributes.class);
       if (entries.add(entry)) {
         jarOut.putNextEntry(new JarEntry(entry));
-        if (file.isFile()) {
+        if (fileAttrs.isRegularFile()) {
           try {
-            Files.copy(file, jarOut);
+            Files.copy(file.toPath(), jarOut);
           } catch (IOException e) {
             throw new IOException("failure copying from " + file.getAbsoluteFile() + " to JAR file entry " + entry, e);
           }
@@ -390,7 +393,7 @@ public final class ApplicationBundler {
         jarOut.closeEntry();
       }
 
-      if (file.isDirectory()) {
+      if (fileAttrs.isDirectory()) {
         File[] files = file.listFiles();
         if (files != null) {
           Collections.addAll(queue, files);

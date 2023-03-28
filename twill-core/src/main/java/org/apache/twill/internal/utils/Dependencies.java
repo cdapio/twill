@@ -72,11 +72,12 @@ public final class Dependencies {
     while (!classes.isEmpty()) {
       String className = classes.remove();
       URL classUrl = getClassURL(className, classLoader);
-      if (classUrl == null) {
+      // If there is no class URL or if the class is coming from java module, ignore tracing of this class.
+      if (classUrl == null || classUrl.getProtocol().equals("jrt")) {
         continue;
       }
 
-      // Call the accept to see if it accept the current class.
+      // Call the acceptor to see if it accepts the current class.
       if (!acceptor.accept(className, classUrl, getClassPathURL(className, classUrl))) {
         continue;
       }
