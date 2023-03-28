@@ -58,7 +58,7 @@ public final class ApplicationBundler {
   private static final Logger LOG = LoggerFactory.getLogger(ApplicationBundler.class);
 
   private final ClassAcceptor classAcceptor;
-  private final Set<String> bootstrapClassPaths;
+//  private final Set<String> bootstrapClassPaths;
   private final CRC32 crc32;
 
   private File tempDir;
@@ -108,17 +108,17 @@ public final class ApplicationBundler {
    */
   public ApplicationBundler(ClassAcceptor classAcceptor) {
     this.classAcceptor = classAcceptor;
-    ImmutableSet.Builder<String> builder = ImmutableSet.builder();
-    for (String classpath : Splitter.on(File.pathSeparatorChar).split(System.getProperty("sun.boot.class.path"))) {
-      File file = new File(classpath);
-      builder.add(file.getAbsolutePath());
-      try {
-        builder.add(file.getCanonicalPath());
-      } catch (IOException e) {
-        // Ignore the exception and proceed.
-      }
-    }
-    this.bootstrapClassPaths = builder.build();
+//    ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+//    for (String classpath : Splitter.on(File.pathSeparatorChar).split(System.getProperty("sun.boot.class.path"))) {
+//      File file = new File(classpath);
+//      builder.add(file.getAbsolutePath());
+//      try {
+//        builder.add(file.getCanonicalPath());
+//      } catch (IOException e) {
+//        // Ignore the exception and proceed.
+//      }
+//    }
+//    this.bootstrapClassPaths = builder.build();
     this.crc32 = new CRC32();
     this.tempDir = new File(System.getProperty("java.io.tmpdir"));
     this.classesDir = "classes/";
@@ -249,12 +249,30 @@ public final class ApplicationBundler {
 
     // Record the set of classpath URL that are already added to the jar
     final Set<URL> seenClassPaths = Sets.newHashSet();
+    ClassLoader platformClassloader;
+    try {
+      platformClassloader = (ClassLoader) ClassLoader.class.getMethod("getPlatformClassLoader")
+        .invoke(null);
+    } catch (Exception e) {
+      platformClassloader = ClassLoader.getSystemClassLoader().getParent();
+    }
+    LOG.info("Platform Classloader {}", platformClassloader);
+
+    ClassLoader finalPlatformClassloader = platformClassloader;
     Dependencies.findClassDependencies(classLoader, new ClassAcceptor() {
       @Override
       public boolean accept(String className, URL classUrl, URL classPathUrl) {
-        if (bootstrapClassPaths.contains(classPathUrl.getFile())) {
+//        if (bootstrapClassPaths.contains(classPathUrl.getFile())) {
+//          return false;
+//        }
+        // Ignore platform classes
+        if (finalPlatformClassloader != null
+          && finalPlatformClassloader.getResource(className.replace('.', '/') + ".class")
+          != null) {
+          LOG.info("Ignore platform class {}", className);
           return false;
         }
+
         if (!classAcceptor.accept(className, classUrl, classPathUrl)) {
           return false;
         }
