@@ -19,8 +19,10 @@ package org.apache.twill.yarn;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.util.Set;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
@@ -62,6 +64,8 @@ final class YarnTwillController extends AbstractTwillController implements Twill
 
   private static final Logger LOG = LoggerFactory.getLogger(YarnTwillController.class);
 
+  private static final Set<YarnApplicationState> YarnApplicationTerminalStates = ImmutableSet.of(
+      YarnApplicationState.FAILED, YarnApplicationState.KILLED, YarnApplicationState.FINISHED);
   private final String appName;
   private final Callable<ProcessController<YarnApplicationReport>> startUp;
   private final long startTimeout;
@@ -263,7 +267,8 @@ final class YarnTwillController extends AbstractTwillController implements Twill
         try {
           LOG.debug("Polling status from Yarn for {} {}.", appName, appId);
           while (!Thread.currentThread().isInterrupted()) {
-            if (report.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED) {
+            if (report.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED ||
+                YarnApplicationTerminalStates.contains(report.getYarnApplicationState())) {
               shutdown = true;
               break;
             }
@@ -289,7 +294,7 @@ final class YarnTwillController extends AbstractTwillController implements Twill
               LOG.debug("Timeout in exists call on ZK path {}.", getInstancePath(), e);
             }
 
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(5);
             report = processController.getReport();
           }
         } catch (InterruptedException e) {
