@@ -90,9 +90,9 @@ public final class ApplicationMasterMain extends ServiceMain {
     TrackerService trackerService = new TrackerService(service);
 
     List<Service> prerequisites = Lists.newArrayList(
-      new YarnAMClientService(amClient, trackerService),
-      zkClientService,
-      new AppMasterTwillZKPathService(zkClientService, runId)
+        zkClientService,
+        new AppMasterTwillZKPathService(zkClientService, runId),
+        new YarnAMClientService(amClient, trackerService)
     );
 
     if (twillRuntimeSpec.isLogCollectionEnabled()) {
