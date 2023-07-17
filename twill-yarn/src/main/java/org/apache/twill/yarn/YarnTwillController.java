@@ -294,7 +294,7 @@ final class YarnTwillController extends AbstractTwillController implements Twill
               LOG.debug("Timeout in exists call on ZK path {}.", getInstancePath(), e);
             }
 
-            TimeUnit.SECONDS.sleep(5);
+            TimeUnit.SECONDS.sleep(1);
             report = processController.getReport();
           }
         } catch (InterruptedException e) {
