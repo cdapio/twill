@@ -111,7 +111,6 @@
         <jopt-simple.version>3.2</jopt-simple.version>
         <commons-compress.version>1.5</commons-compress.version>
         <force.mac.tests>false</force.mac.tests>
-        <scala.version>2.12.10</scala.version>
     </properties>
 
     <build>
@@ -935,11 +934,6 @@
                 <artifactId>commons-compress</artifactId>
                 <version>${commons-compress.version}</version>
                 <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

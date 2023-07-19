@@ -20,20 +20,14 @@ package org.apache.twill.internal.kafka;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
-import kafka.metrics.KafkaMetricsReporter;
 import kafka.server.KafkaConfig;
-import kafka.server.KafkaServer;
+import kafka.server.KafkaServerStartable;
 import org.I0Itec.zkclient.exception.ZkTimeoutException;
-import org.apache.kafka.common.utils.Time;
 import org.apache.twill.internal.utils.Networks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.collection.JavaConverters;
 
 import java.net.BindException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +45,7 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
 
   private final int startTimeoutRetries;
   private final Properties properties;
-  private KafkaServer server;
+  private KafkaServerStartable server;
 
   public EmbeddedKafkaServer(Properties properties) {
     this.startTimeoutRetries = Integer.parseInt(properties.getProperty(START_RETRIES,
@@ -64,8 +58,8 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
   protected void startUp() throws Exception {
     int tries = 0;
     do {
-      KafkaConfig kafkaConfig = createKafkaConfig(properties);
-      KafkaServer kafkaServer = createKafkaServer(kafkaConfig);
+      KafkaServerStartable kafkaServer = KafkaServerStartable.fromProps(createKafkaProperties(properties));
+      KafkaConfig kafkaConfig = kafkaServer.serverConfig();
       try {
         kafkaServer.startup();
         server = kafkaServer;
@@ -101,41 +95,11 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
     }
   }
 
-  private KafkaServer createKafkaServer(KafkaConfig kafkaConfig) {
-    List<KafkaMetricsReporter> reporters = new ArrayList<>();
-    return new KafkaServer(kafkaConfig, new Time() {
-
-      @Override
-      public long milliseconds() {
-        return System.currentTimeMillis();
-      }
-
-      @Override
-      public long hiResClockMs() {
-        return SYSTEM.hiResClockMs();
-      }
-
-      @Override
-      public long nanoseconds() {
-        return System.nanoTime();
-      }
-
-      @Override
-      public void sleep(long ms) {
-        try {
-          Thread.sleep(ms);
-        } catch (InterruptedException e) {
-          Thread.interrupted();
-        }
-      }
-    }, Option.empty(), JavaConverters.asScalaBufferConverter(reporters).asScala());
-  }
-
   /**
    * Creates a new {@link KafkaConfig} from the given {@link Properties}. If the {@code "port"} property is missing
    * or is equals to {@code "0"}, a random port will be generated.
    */
-  private KafkaConfig createKafkaConfig(Properties properties) {
+  private Properties createKafkaProperties(Properties properties) {
     Properties prop = new Properties();
     prop.putAll(properties);
 
@@ -146,6 +110,6 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
       prop.setProperty("port", Integer.toString(randomPort));
     }
 
-    return new KafkaConfig(prop);
+    return prop;
   }
 }
