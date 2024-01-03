@@ -40,6 +40,14 @@ public interface TwillRunner {
     String getApplicationName();
 
     /**
+     * Returns version of the application.
+     * @return Application version if it exists, else null.
+     */
+    default String getApplicationVersion() {
+      return null;
+    }
+
+    /**
      * Returns {@link TwillController}s for all live instances of the application.
      * @return An {@link Iterable} of {@link TwillController}.
      */
