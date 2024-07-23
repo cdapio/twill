@@ -109,7 +109,7 @@
         <zookeeper.version>3.4.5</zookeeper.version>
         <junit.version>4.11</junit.version>
         <jopt-simple.version>3.2</jopt-simple.version>
-        <commons-compress.version>1.5</commons-compress.version>
+        <commons-compress.version>1.26.0</commons-compress.version>
         <force.mac.tests>false</force.mac.tests>
         <scala.version>2.12.10</scala.version>
     </properties>
