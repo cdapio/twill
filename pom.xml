@@ -97,6 +97,13 @@
     </properties>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>com.google.cloud.artifactregistry</groupId>
+                <artifactId>artifactregistry-maven-wagon</artifactId>
+                <version>2.2.5</version>
+            </extension>
+        </extensions>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -210,34 +217,6 @@
                         </execution>
                     </executions>
                 </plugin>
-                <plugin>
-                    <groupId>org.sonatype.central</groupId>
-                    <artifactId>central-publishing-maven-plugin</artifactId>
-                    <version>0.8.0</version>
-                    <extensions>true</extensions>
-                    <configuration>
-                        <publishingServerId>sonatype.release</publishingServerId>
-                        <autoPublish>false</autoPublish>
-                        <ignorePublishedComponents>true</ignorePublishedComponents>
-                    </configuration>
-                </plugin>
-                <!-- GPG signature -->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-gpg-plugin</artifactId>
-                    <version>1.5</version>
-                    <configuration>
-                        <passphrase>${gpg.passphrase}</passphrase>
-                        <useAgent>${gpg.useagent}</useAgent>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>sign</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -282,18 +261,56 @@
                     </includes>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-            </plugin>
+            <!-- GPG signature -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <configuration>
+                    <passphrase>${gpg.passphrase}</passphrase>
+                    <useAgent>${gpg.useagent}</useAgent>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
 
     <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.8.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>sonatype.release</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                            <ignorePublishedComponents>true</ignorePublishedComponents>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>version-release</id>
+            <distributionManagement>
+                <repository>
+                    <id>artifact-registry</id>
+                    <url>artifactregistry://us-east1-maven.pkg.dev/oss-exit-gate-prod/cloud-data-fusion--mavencentral</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+
+
         <profile>
             <!--
                 This profile is to force certain tests to run on Mac.
