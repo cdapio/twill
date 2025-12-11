@@ -86,7 +86,7 @@
         <snappy-java.version>1.0.5</snappy-java.version>
         <jcl-over-slf4j.version>1.7.2</jcl-over-slf4j.version>
         <asm.version>7.1</asm.version>
-        <kafka.version>0.10.2.2</kafka.version>
+        <kafka.version>3.7.2</kafka.version>
         <zkclient.version>0.10</zkclient.version>
         <zookeeper.version>3.4.5</zookeeper.version>
         <junit.version>4.11</junit.version>
