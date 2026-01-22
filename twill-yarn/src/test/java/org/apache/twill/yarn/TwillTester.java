@@ -111,7 +111,7 @@ public class TwillTester extends ExternalResource {
 
     // Starts Zookeeper
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     // Start YARN mini cluster
     File miniDFSDir = tmpFolder.newFolder();
@@ -241,7 +241,7 @@ public class TwillTester extends ExternalResource {
 
   private void stopQuietly(Service service) {
     try {
-      service.stopAndWait();
+      service.stopAsync().awaitTerminated();
     } catch (Exception e) {
       LOG.warn("Failed to stop service {}.", service, e);
     }

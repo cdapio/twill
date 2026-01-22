@@ -54,8 +54,8 @@ public class ServicesTest {
     Service service = new DummyService("s1", new AtomicBoolean());
     ListenableFuture<Service.State> completion = Services.getCompletionFuture(service);
 
-    service.start();
-    service.stop();
+    service.startAsync();
+    service.stopAsync();
 
     completion.get();
 
@@ -63,9 +63,9 @@ public class ServicesTest {
     service = new DummyService("s2", transiting);
     completion = Services.getCompletionFuture(service);
 
-    service.startAndWait();
+    service.startAsync().awaitRunning();
     transiting.set(true);
-    service.stop();
+    service.stopAsync();
 
     try {
       completion.get();

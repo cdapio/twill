@@ -20,9 +20,9 @@ package org.apache.twill.internal;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.SettableFuture;
-import org.apache.twill.common.Threads;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -82,7 +82,7 @@ public final class Services {
       public void failed(Service.State from, Throwable failure) {
         resultFuture.setException(failure);
       }
-    }, Threads.SAME_THREAD_EXECUTOR);
+    }, MoreExecutors.directExecutor());
 
     Service.State state = service.state();
     if (state == Service.State.TERMINATED) {
@@ -103,10 +103,48 @@ public final class Services {
     SettableFuture<List<ListenableFuture<Service.State>>> resultFuture = SettableFuture.create();
     List<ListenableFuture<Service.State>> result = Lists.newArrayListWithCapacity(moreServices.length + 1);
 
-    ListenableFuture<Service.State> future = doStart ? firstService.start() : firstService.stop();
+    // Create a future for the first service action
+    ListenableFuture<Service.State> future = createServiceFuture(firstService, doStart);
     future.addListener(createChainListener(future, moreServices, new AtomicInteger(0), result, resultFuture, doStart),
-                       Threads.SAME_THREAD_EXECUTOR);
+                       MoreExecutors.directExecutor());
     return resultFuture;
+  }
+
+  /**
+   * Helper method to start/stop a service and return a Future representing that action's completion.
+   * Replaces the old service.start() / service.stop() behavior.
+   */
+  private static ListenableFuture<Service.State> createServiceFuture(Service service, boolean doStart) {
+    final SettableFuture<Service.State> future = SettableFuture.create();
+
+    // Add listener to capture completion state
+    service.addListener(new ServiceListenerAdapter() {
+      @Override
+      public void running() {
+        if (doStart) {
+          future.set(Service.State.RUNNING);
+        }
+      }
+
+      @Override
+      public void terminated(Service.State from) {
+        if (!doStart) {
+          future.set(Service.State.TERMINATED);
+        }
+      }
+
+      @Override
+      public void failed(Service.State from, Throwable failure) {
+        future.setException(failure);
+      }
+    }, MoreExecutors.directExecutor());
+    // Trigger action
+    if (doStart) {
+      service.startAsync();
+    } else {
+      service.stopAsync();
+    }
+    return future;
   }
 
   /**
@@ -129,9 +167,9 @@ public final class Services {
           resultFuture.set(result);
           return;
         }
-        ListenableFuture<Service.State> actionFuture = doStart ? services[nextIdx].start() : services[nextIdx].stop();
+        ListenableFuture<Service.State> actionFuture = createServiceFuture(services[nextIdx], doStart);
         actionFuture.addListener(createChainListener(actionFuture, services, idx, result, resultFuture, doStart),
-                                 Threads.SAME_THREAD_EXECUTOR);
+                                 MoreExecutors.directExecutor());
       }
     };
   }

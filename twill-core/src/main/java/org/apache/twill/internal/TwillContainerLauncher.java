@@ -167,7 +167,7 @@ public final class TwillContainerLauncher {
 
     TwillContainerControllerImpl controller =
       new TwillContainerControllerImpl(zkClient, runId, runtimeSpec.getName(), instanceId, processController);
-    controller.start();
+    controller.startAsync();
     return controller;
   }
 
@@ -292,9 +292,9 @@ public final class TwillContainerLauncher {
     }
 
     private void killAndWait(long maxWaitSecs) {
-      Stopwatch watch = new Stopwatch();
+      Stopwatch watch = Stopwatch.createStarted();
       watch.start();
-      while (watch.elapsedTime(TimeUnit.SECONDS) < maxWaitSecs) {
+      while (watch.elapsed(TimeUnit.SECONDS) < maxWaitSecs) {
         // Kill the application
         try {
           kill();
@@ -312,7 +312,7 @@ public final class TwillContainerLauncher {
 
       // Timeout reached, runnable has not stopped
       LOG.error("Failed to kill runnable {}, instance {} after {} seconds", runnable, instanceId,
-                watch.elapsedTime(TimeUnit.SECONDS));
+                watch.elapsed(TimeUnit.SECONDS));
       // TODO: should we throw exception here?
     }
   }

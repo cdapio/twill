@@ -65,11 +65,11 @@ public class KafkaTest {
   @BeforeClass
   public static void init() throws Exception {
     zkServer = InMemoryZKServer.builder().setDataDir(TMP_FOLDER.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     // Extract the kafka.tgz and start the kafka server
     kafkaServer = new EmbeddedKafkaServer(generateKafkaConfig(zkServer.getConnectionStr()));
-    kafkaServer.startAndWait();
+    kafkaServer.startAsync().awaitRunning();
 
     zkClientService = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
 
@@ -80,8 +80,8 @@ public class KafkaTest {
   @AfterClass
   public static void finish() throws Exception {
     Services.chainStop(kafkaClient, zkClientService).get();
-    kafkaServer.stopAndWait();
-    zkServer.stopAndWait();
+    kafkaServer.stopAsync().awaitTerminated();
+    zkServer.stopAsync().awaitTerminated();
   }
 
   @Test
@@ -91,15 +91,15 @@ public class KafkaTest {
     EmbeddedKafkaServer server = new EmbeddedKafkaServer(kafkaServerConfig);
 
     ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr() + "/backoff").build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
     try {
       zkClient.create("/", null, CreateMode.PERSISTENT).get();
 
       ZKKafkaClientService kafkaClient = new ZKKafkaClientService(zkClient);
-      kafkaClient.startAndWait();
+      kafkaClient.startAsync().awaitRunning();
 
       try {
-        server.startAndWait();
+        server.startAsync().awaitRunning();
         try {
           // Publish a messages
           createPublishThread(kafkaClient, topic, Compression.NONE, "First message", 1).start();
@@ -128,12 +128,12 @@ public class KafkaTest {
           Assert.assertEquals("0 First message", queue.poll(60, TimeUnit.SECONDS));
 
           // Shutdown the server
-          server.stopAndWait();
+          server.stopAsync().awaitTerminated();
 
           // Start the server again.
           // Needs to create a new instance with the same config since guava service cannot be restarted
           server = new EmbeddedKafkaServer(kafkaServerConfig);
-          server.startAndWait();
+          server.startAsync().awaitRunning();
 
           // Wait a little while to make sure changes is reflected in broker service
           TimeUnit.SECONDS.sleep(3);
@@ -146,13 +146,13 @@ public class KafkaTest {
 
           cancel.cancel();
         } finally {
-          kafkaClient.stopAndWait();
+          kafkaClient.stopAsync().awaitTerminated();
         }
       } finally {
-        server.stopAndWait();
+        server.stopAsync().awaitTerminated();
       }
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -247,17 +247,17 @@ public class KafkaTest {
     // Create a new namespace in ZK for Kafka server for this test case
     String connectionStr = zkServer.getConnectionStr() + "/broker_change";
     ZKClientService zkClient = ZKClientService.Builder.of(connectionStr).build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
     zkClient.create("/", null, CreateMode.PERSISTENT).get();
 
     // Start a new kafka server
     File logDir = TMP_FOLDER.newFolder();
     EmbeddedKafkaServer server = new EmbeddedKafkaServer(generateKafkaConfig(connectionStr, logDir));
-    server.startAndWait();
+    server.startAsync().awaitRunning();
 
     // Start a Kafka client
     KafkaClientService kafkaClient = new ZKKafkaClientService(zkClient);
-    kafkaClient.startAndWait();
+    kafkaClient.startAsync().awaitRunning();
 
     // Attach a consumer
     final BlockingQueue<String> consumedMessages = Queues.newLinkedBlockingQueue();
@@ -288,9 +288,9 @@ public class KafkaTest {
     Assert.assertEquals("Message 0", consumedMessages.poll(5, TimeUnit.SECONDS));
 
     // Now shutdown and restart the server on different port
-    server.stopAndWait();
+    server.stopAsync().awaitTerminated();
     server = new EmbeddedKafkaServer(generateKafkaConfig(connectionStr, logDir));
-    server.startAndWait();
+    server.startAsync().awaitRunning();
 
     // Wait a little while to make sure changes is reflected in broker service
     TimeUnit.SECONDS.sleep(3);
@@ -299,9 +299,9 @@ public class KafkaTest {
     publisher.prepare("test").add(Charsets.UTF_8.encode("Message 1"), 0).send().get();
     Assert.assertEquals("Message 1", consumedMessages.poll(5, TimeUnit.SECONDS));
 
-    kafkaClient.stopAndWait();
-    zkClient.stopAndWait();
-    server.stopAndWait();
+    kafkaClient.stopAsync().awaitTerminated();
+    zkClient.stopAsync().awaitTerminated();
+    server.stopAsync().awaitTerminated();
   }
 
   private Thread createPublishThread(final KafkaClient kafkaClient, final String topic,

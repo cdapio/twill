@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -144,7 +145,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   @Override
   public ListenableFuture<String> onReceived(String messageId, Message message) {
     LOG.info("Message received: {}", message);
-    return Futures.immediateCheckedFuture(messageId);
+    return Futures.immediateFuture(messageId);
   }
 
   @Override
@@ -164,10 +165,10 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
       @Override
       public void process(WatchedEvent event) {
         if (event.getState() == Event.KeeperState.Expired) {
-          LOG.warn("ZK Session expired for service {} with runId {}.", getServiceName(), runId.getId());
+          LOG.warn("ZK Session expired for service {} with runId {}.", serviceName(), runId.getId());
           expired = true;
         } else if (event.getState() == Event.KeeperState.SyncConnected && expired) {
-          LOG.info("Reconnected after expiration for service {} with runId {}", getServiceName(), runId.getId());
+          LOG.info("Reconnected after expiration for service {} with runId {}", serviceName(), runId.getId());
           expired = false;
           logIfFailed(createLiveNode());
         }
@@ -204,7 +205,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     } finally {
       // Given at most 5 seconds to cleanup ZK nodes
       removeLiveNode().get(5, TimeUnit.SECONDS);
-      LOG.info("Service {} with runId {} shutdown completed", getServiceName(), runId.getId());
+      LOG.info("Service {} with runId {} shutdown completed", serviceName(), runId.getId());
     }
   }
 
@@ -327,19 +328,20 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
                                                          Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
     terminationTimeoutMillis.compareAndSet(-1L, timeoutMillis);
 
-    // Stop this service.
-    Futures.addCallback(stop(), new FutureCallback<State>() {
+    addListener(new Listener() {
       @Override
-      public void onSuccess(State result) {
+      public void terminated(State from) {
         messageRemover.run();
       }
 
       @Override
-      public void onFailure(Throwable t) {
-        LOG.error("Stop service failed upon STOP command", t);
+      public void failed(State from, Throwable failure) {
+        LOG.error("Stop service failed upon STOP command", failure);
         messageRemover.run();
       }
-    }, Threads.SAME_THREAD_EXECUTOR);
+    }, MoreExecutors.directExecutor());
+    // Stop this service.
+    stopAsync();
     return true;
   }
 
@@ -391,7 +393,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
 
       @Override
       public void onFailure(Throwable t) {
-        LOG.error("Operation failed for service {} with runId {}", getServiceName(), runId, t);
+        LOG.error("Operation failed for service {} with runId {}", serviceName(), runId, t);
       }
     }, Threads.SAME_THREAD_EXECUTOR);
   }

@@ -284,7 +284,7 @@ public class RestartRunnableTestRun extends BaseYarnTest {
 
   private void waitForContainers(TwillController controller, int count, long timeout, TimeUnit timeoutUnit)
     throws Exception {
-    Stopwatch stopwatch = new Stopwatch();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     stopwatch.start();
     int yarnContainers = 0;
     int twillContainers = 0;
@@ -298,7 +298,7 @@ public class RestartRunnableTestRun extends BaseYarnTest {
         }
       }
       TimeUnit.SECONDS.sleep(1);
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     throw new TimeoutException("Timeout reached while waiting for num containers to be " +  count +
                                  ". Yarn containers = " + yarnContainers + ", Twill containers = " + twillContainers);
@@ -306,7 +306,7 @@ public class RestartRunnableTestRun extends BaseYarnTest {
 
   private void waitForInstance(TwillController controller, String runnable, String yarnInstanceId,
                                long timeout, TimeUnit timeoutUnit) throws InterruptedException, TimeoutException {
-    Stopwatch stopwatch = new Stopwatch();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
@@ -318,7 +318,7 @@ public class RestartRunnableTestRun extends BaseYarnTest {
         }
       }
       TimeUnit.SECONDS.sleep(1);
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     throw new TimeoutException("Timeout reached while waiting for runnable " +
                                  runnable + " instance " + yarnInstanceId);

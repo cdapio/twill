@@ -18,11 +18,11 @@
 package org.apache.twill.zookeeper;
 
 import com.google.common.base.Supplier;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.zookeeper.ZooKeeper;
-
+import com.google.common.util.concurrent.Service;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.apache.zookeeper.ZooKeeper;
 
 /**
  *
@@ -42,13 +42,9 @@ public abstract class ForwardingZKClientService extends ForwardingZKClient imple
   }
 
   @Override
-  public ListenableFuture<State> start() {
-    return delegate.start();
-  }
-
-  @Override
-  public State startAndWait() {
-    return Futures.getUnchecked(start());
+  public Service startAsync() {
+    delegate.startAsync();
+    return this;
   }
 
   @Override
@@ -62,13 +58,34 @@ public abstract class ForwardingZKClientService extends ForwardingZKClient imple
   }
 
   @Override
-  public ListenableFuture<State> stop() {
-    return delegate.stop();
+  public Service stopAsync() {
+    delegate.stopAsync();
+    return this;
   }
 
   @Override
-  public State stopAndWait() {
-    return Futures.getUnchecked(stop());
+  public void awaitRunning() {
+    delegate.awaitRunning();
+  }
+
+  @Override
+  public void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    delegate.awaitRunning(timeout, unit);
+  }
+
+  @Override
+  public void awaitTerminated() {
+    delegate.awaitTerminated();
+  }
+
+  @Override
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
+    delegate.awaitTerminated(timeout, unit);
+  }
+
+  @Override
+  public Throwable failureCause() {
+    return delegate.failureCause();
   }
 
   @Override

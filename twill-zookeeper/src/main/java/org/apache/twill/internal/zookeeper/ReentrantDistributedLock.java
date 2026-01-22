@@ -81,7 +81,8 @@ public class ReentrantDistributedLock implements Lock {
       acquire(false, true);
     } catch (Exception e) {
       lock.unlock();
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -92,8 +93,9 @@ public class ReentrantDistributedLock implements Lock {
       acquire(true, true);
     } catch (Exception e) {
       lock.unlock();
-      Throwables.propagateIfInstanceOf(e, InterruptedException.class);
-      throw Throwables.propagate(e);
+      Throwables.throwIfInstanceOf(e, InterruptedException.class);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -110,7 +112,8 @@ public class ReentrantDistributedLock implements Lock {
       return false;
     } catch (Exception e) {
       lock.unlock();
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -129,7 +132,8 @@ public class ReentrantDistributedLock implements Lock {
       return false;
     } catch (ExecutionException e) {
       lock.unlock();
-      throw Throwables.propagate(e.getCause());
+      Throwables.throwIfUnchecked(e.getCause());
+      throw new RuntimeException(e.getCause());
     } catch (TimeoutException e) {
       lock.unlock();
       return false;
@@ -148,7 +152,8 @@ public class ReentrantDistributedLock implements Lock {
         try {
           Uninterruptibles.getUninterruptibly(zkClient.delete(localLockNode.get()));
         } catch (ExecutionException e) {
-          throw Throwables.propagate(e.getCause());
+          Throwables.throwIfUnchecked(e.getCause());
+          throw new RuntimeException(e.getCause());
         } finally {
           localLockNode.remove();
         }
@@ -176,7 +181,8 @@ public class ReentrantDistributedLock implements Lock {
       return acquire(interruptible, waitForLock, Long.MAX_VALUE, TimeUnit.SECONDS);
     } catch (TimeoutException e) {
       // Should never happen
-      throw Throwables.propagate(e);
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -258,7 +264,7 @@ public class ReentrantDistributedLock implements Lock {
           completion.setException(t);
         }
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
 
     // Gets the result from the completion
     try {
@@ -353,7 +359,7 @@ public class ReentrantDistributedLock implements Lock {
               completion.setException(t);
             }
           }
-        });
+        }, Threads.SAME_THREAD_EXECUTOR);
       }
 
       @Override
@@ -364,7 +370,7 @@ public class ReentrantDistributedLock implements Lock {
           doAcquire(completion, waitForLock, guid, null);
         }
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   /**

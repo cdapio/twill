@@ -89,7 +89,7 @@ public class SessionExpireTestRun extends BaseYarnTest {
     MBeanServer mbeanServer = MBeanRegistry.getInstance().getPlatformMBeanServer();
     QueryExp query = Query.isInstanceOf(new StringValueExp(ConnectionMXBean.class.getName()));
 
-    Stopwatch stopwatch = new Stopwatch();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     stopwatch.start();
     do {
       // Find the AM session and expire it
@@ -108,7 +108,7 @@ public class SessionExpireTestRun extends BaseYarnTest {
         }
       }
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     return false;
   }

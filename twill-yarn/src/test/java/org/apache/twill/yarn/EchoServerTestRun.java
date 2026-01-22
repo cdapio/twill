@@ -161,7 +161,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
   @Test
   public void testZKCleanup() throws Exception {
     final ZKClientService zkClient = ZKClientService.Builder.of(getZKConnectionString() + "/twill").build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
 
     try {
       TwillRunner runner = getTwillRunner();
@@ -222,7 +222,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
       }, 10000, 100, TimeUnit.MILLISECONDS);
 
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -239,7 +239,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
   private ResourceReport waitForAfterRestartResourceReport(TwillController controller, String runnable, long timeout,
                                                            TimeUnit timeoutUnit, int numOfResources,
                                                            @Nullable Map<Integer, String> instanceIdToContainerId) {
-    Stopwatch stopwatch = new Stopwatch();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
@@ -271,7 +271,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
         }
         Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
       }
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     LOG.error("Unable to get different container ids for restart.");
     return null;

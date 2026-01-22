@@ -218,7 +218,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     }
 
     try {
-      Stopwatch stopwatch = new Stopwatch();
+      Stopwatch stopwatch = Stopwatch.createStarted();
       stopwatch.start();
       long publishTimeout = timeout;
 
@@ -230,7 +230,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
         } catch (ExecutionException e) {
           addError("Failed to publish logs to Kafka.", e);
           TimeUnit.NANOSECONDS.sleep(backOffTime);
-          publishTimeout -= stopwatch.elapsedTime(timeoutUnit);
+          publishTimeout -= stopwatch.elapsed(timeoutUnit);
           stopwatch.reset();
           stopwatch.start();
         }

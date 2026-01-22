@@ -306,8 +306,8 @@ public final class ResourceReportTestRun extends BaseYarnTest {
 
   private ResourceReport getResourceReport(TwillController controller, long timeoutMillis) {
     ResourceReport report = controller.getResourceReport();
-    Stopwatch stopwatch = new Stopwatch();
-    while (report == null && stopwatch.elapsedMillis() < timeoutMillis) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    while (report == null && stopwatch.elapsed().toMillis() < timeoutMillis) {
       Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
       report = controller.getResourceReport();
     }

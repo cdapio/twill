@@ -161,7 +161,7 @@ public class LogLevelTestRun extends BaseYarnTest {
   private boolean waitForLogLevel(TwillController controller, String runnable, long timeout,
                                   TimeUnit timeoutUnit, @Nullable LogEntry.Level expected) throws InterruptedException {
 
-    Stopwatch stopwatch = new Stopwatch();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
@@ -175,7 +175,7 @@ public class LogLevelTestRun extends BaseYarnTest {
         }
       }
       TimeUnit.MILLISECONDS.sleep(100);
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     return false;
   }
