@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import org.apache.twill.api.AbstractTwillRunnable;
 import org.apache.twill.api.TwillContext;
@@ -26,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -82,7 +82,8 @@ public abstract class SocketServer extends AbstractTwillRunnable {
     try {
       while (running) {
         try (Socket socket = serverSocket.accept()) {
-          BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+          BufferedReader reader = new BufferedReader(
+            new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
           PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
           handleRequest(reader, writer);
         } catch (SocketException e) {

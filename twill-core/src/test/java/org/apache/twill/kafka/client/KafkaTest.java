@@ -17,7 +17,6 @@
  */
 package org.apache.twill.kafka.client;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.Futures;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -65,11 +65,11 @@ public class KafkaTest {
   @BeforeClass
   public static void init() throws Exception {
     zkServer = InMemoryZKServer.builder().setDataDir(TMP_FOLDER.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     // Extract the kafka.tgz and start the kafka server
     kafkaServer = new EmbeddedKafkaServer(generateKafkaConfig(zkServer.getConnectionStr()));
-    kafkaServer.startAndWait();
+    kafkaServer.startAsync().awaitRunning();
 
     zkClientService = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
 
@@ -80,8 +80,8 @@ public class KafkaTest {
   @AfterClass
   public static void finish() throws Exception {
     Services.chainStop(kafkaClient, zkClientService).get();
-    kafkaServer.stopAndWait();
-    zkServer.stopAndWait();
+    kafkaServer.stopAsync().awaitTerminated();
+    zkServer.stopAsync().awaitTerminated();
   }
 
   @Test
@@ -91,15 +91,15 @@ public class KafkaTest {
     EmbeddedKafkaServer server = new EmbeddedKafkaServer(kafkaServerConfig);
 
     ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr() + "/backoff").build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
     try {
       zkClient.create("/", null, CreateMode.PERSISTENT).get();
 
       ZKKafkaClientService kafkaClient = new ZKKafkaClientService(zkClient);
-      kafkaClient.startAndWait();
+      kafkaClient.startAsync().awaitRunning();
 
       try {
-        server.startAndWait();
+        server.startAsync().awaitRunning();
         try {
           // Publish a messages
           createPublishThread(kafkaClient, topic, Compression.NONE, "First message", 1).start();
@@ -114,7 +114,7 @@ public class KafkaTest {
                 while (messages.hasNext()) {
                   FetchedMessage message = messages.next();
                   nextOffset = message.getNextOffset();
-                  queue.offer(Charsets.UTF_8.decode(message.getPayload()).toString());
+                  queue.offer(StandardCharsets.UTF_8.decode(message.getPayload()).toString());
                 }
                 return nextOffset;
               }
@@ -128,12 +128,12 @@ public class KafkaTest {
           Assert.assertEquals("0 First message", queue.poll(60, TimeUnit.SECONDS));
 
           // Shutdown the server
-          server.stopAndWait();
+          server.stopAsync().awaitTerminated();
 
           // Start the server again.
           // Needs to create a new instance with the same config since guava service cannot be restarted
           server = new EmbeddedKafkaServer(kafkaServerConfig);
-          server.startAndWait();
+          server.startAsync().awaitRunning();
 
           // Wait a little while to make sure changes is reflected in broker service
           TimeUnit.SECONDS.sleep(3);
@@ -146,13 +146,13 @@ public class KafkaTest {
 
           cancel.cancel();
         } finally {
-          kafkaClient.stopAndWait();
+          kafkaClient.stopAsync().awaitTerminated();
         }
       } finally {
-        server.stopAndWait();
+        server.stopAsync().awaitTerminated();
       }
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -180,7 +180,7 @@ public class KafkaTest {
         while (messages.hasNext()) {
           FetchedMessage message = messages.next();
           nextOffset = message.getNextOffset();
-          LOG.info(Charsets.UTF_8.decode(message.getPayload()).toString());
+          LOG.info(StandardCharsets.UTF_8.decode(message.getPayload()).toString());
           latch.countDown();
         }
         return nextOffset;
@@ -222,7 +222,7 @@ public class KafkaTest {
           FetchedMessage message = messages.next();
           nextOffset = message.getNextOffset() + 1;
           offsetQueue.offer(message.getOffset());
-          LOG.info(Charsets.UTF_8.decode(message.getPayload()).toString());
+          LOG.info(StandardCharsets.UTF_8.decode(message.getPayload()).toString());
           return nextOffset;
         }
         return nextOffset;
@@ -247,17 +247,17 @@ public class KafkaTest {
     // Create a new namespace in ZK for Kafka server for this test case
     String connectionStr = zkServer.getConnectionStr() + "/broker_change";
     ZKClientService zkClient = ZKClientService.Builder.of(connectionStr).build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
     zkClient.create("/", null, CreateMode.PERSISTENT).get();
 
     // Start a new kafka server
     File logDir = TMP_FOLDER.newFolder();
     EmbeddedKafkaServer server = new EmbeddedKafkaServer(generateKafkaConfig(connectionStr, logDir));
-    server.startAndWait();
+    server.startAsync().awaitRunning();
 
     // Start a Kafka client
     KafkaClientService kafkaClient = new ZKKafkaClientService(zkClient);
-    kafkaClient.startAndWait();
+    kafkaClient.startAsync().awaitRunning();
 
     // Attach a consumer
     final BlockingQueue<String> consumedMessages = Queues.newLinkedBlockingQueue();
@@ -269,7 +269,7 @@ public class KafkaTest {
         while (messages.hasNext()) {
           FetchedMessage message = messages.next();
           nextOffset = message.getNextOffset();
-          consumedMessages.add(Charsets.UTF_8.decode(message.getPayload()).toString());
+          consumedMessages.add(StandardCharsets.UTF_8.decode(message.getPayload()).toString());
         }
         return nextOffset;
       }
@@ -282,26 +282,26 @@ public class KafkaTest {
 
     // Get a publisher and publish a message
     KafkaPublisher publisher = kafkaClient.getPublisher(KafkaPublisher.Ack.FIRE_AND_FORGET, Compression.NONE);
-    publisher.prepare("test").add(Charsets.UTF_8.encode("Message 0"), 0).send().get();
+    publisher.prepare("test").add(StandardCharsets.UTF_8.encode("Message 0"), 0).send().get();
 
     // Should receive one message
     Assert.assertEquals("Message 0", consumedMessages.poll(5, TimeUnit.SECONDS));
 
     // Now shutdown and restart the server on different port
-    server.stopAndWait();
+    server.stopAsync().awaitTerminated();
     server = new EmbeddedKafkaServer(generateKafkaConfig(connectionStr, logDir));
-    server.startAndWait();
+    server.startAsync().awaitRunning();
 
     // Wait a little while to make sure changes is reflected in broker service
     TimeUnit.SECONDS.sleep(3);
 
     // Now publish again with the same publisher. It should succeed and the consumer should receive the message.
-    publisher.prepare("test").add(Charsets.UTF_8.encode("Message 1"), 0).send().get();
+    publisher.prepare("test").add(StandardCharsets.UTF_8.encode("Message 1"), 0).send().get();
     Assert.assertEquals("Message 1", consumedMessages.poll(5, TimeUnit.SECONDS));
 
-    kafkaClient.stopAndWait();
-    zkClient.stopAndWait();
-    server.stopAndWait();
+    kafkaClient.stopAsync().awaitTerminated();
+    zkClient.stopAsync().awaitTerminated();
+    server.stopAsync().awaitTerminated();
   }
 
   private Thread createPublishThread(final KafkaClient kafkaClient, final String topic,
@@ -315,7 +315,7 @@ public class KafkaTest {
       KafkaPublisher publisher = kafkaClient.getPublisher(KafkaPublisher.Ack.ALL_RECEIVED, compression);
       KafkaPublisher.Preparer preparer = publisher.prepare(topic);
       for (int i = 0; i < count; i++) {
-        preparer.add(Charsets.UTF_8.encode((base + i) + " " + message), 0);
+        preparer.add(StandardCharsets.UTF_8.encode((base + i) + " " + message), 0);
       }
       Futures.getUnchecked(preparer.send());
     });

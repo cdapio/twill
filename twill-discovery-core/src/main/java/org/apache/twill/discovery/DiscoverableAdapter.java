@@ -17,7 +17,6 @@
  */
 package org.apache.twill.discovery;
 
-import com.google.common.base.Charsets;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -30,6 +29,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.net.InetSocketAddress;
 
 /**
@@ -47,7 +47,7 @@ final class DiscoverableAdapter {
    * @return array of bytes representing an instance of <code>discoverable</code>
    */
   static byte[] encode(Discoverable discoverable) {
-    return GSON.toJson(discoverable, Discoverable.class).getBytes(Charsets.UTF_8);
+    return GSON.toJson(discoverable, Discoverable.class).getBytes(StandardCharsets.UTF_8);
   }
 
   /**
@@ -59,7 +59,7 @@ final class DiscoverableAdapter {
     if (encoded == null) {
       return null;
     }
-    return GSON.fromJson(new String(encoded, Charsets.UTF_8), Discoverable.class);
+    return GSON.fromJson(new String(encoded, StandardCharsets.UTF_8), Discoverable.class);
   }
 
   private DiscoverableAdapter() {

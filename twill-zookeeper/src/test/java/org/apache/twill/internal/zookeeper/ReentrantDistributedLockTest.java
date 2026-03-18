@@ -49,12 +49,12 @@ public class ReentrantDistributedLockTest {
   @BeforeClass
   public static void init() throws IOException {
     zkServer = InMemoryZKServer.builder().setDataDir(TMP_FOLDER.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
   }
 
   @AfterClass
   public static void finish() {
-    zkServer.stopAndWait();
+    zkServer.stopAsync().awaitTerminated();
   }
 
   @Test(timeout = 20000)
@@ -74,7 +74,7 @@ public class ReentrantDistributedLockTest {
         lock.unlock();
       }
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -111,7 +111,7 @@ public class ReentrantDistributedLockTest {
       t.join();
 
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -160,8 +160,8 @@ public class ReentrantDistributedLockTest {
       Assert.assertTrue(lockAcquired.await(5, TimeUnit.SECONDS));
       t.join();
     } finally {
-      zkClient1.stopAndWait();
-      zkClient2.stopAndWait();
+      zkClient1.stopAsync().awaitTerminated();
+      zkClient2.stopAsync().awaitTerminated();
     }
   }
 
@@ -201,7 +201,7 @@ public class ReentrantDistributedLockTest {
         lock.unlock();
       }
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -253,8 +253,8 @@ public class ReentrantDistributedLockTest {
       lock2.unlock();
 
     } finally {
-      zkClient1.stopAndWait();
-      zkClient2.stopAndWait();
+      zkClient1.stopAsync().awaitTerminated();
+      zkClient2.stopAsync().awaitTerminated();
     }
   }
 
@@ -310,7 +310,7 @@ public class ReentrantDistributedLockTest {
       Assert.assertTrue(lock.tryLock());
       lock.unlock();
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -368,8 +368,8 @@ public class ReentrantDistributedLockTest {
       Assert.assertTrue(lock1.tryLock());
       lock1.unlock();
     } finally {
-      zkClient1.stopAndWait();
-      zkClient2.stopAndWait();
+      zkClient1.stopAsync().awaitTerminated();
+      zkClient2.stopAsync().awaitTerminated();
     }
   }
 
@@ -418,8 +418,8 @@ public class ReentrantDistributedLockTest {
       Assert.assertTrue(lockLatch.await(30, TimeUnit.SECONDS));
 
     } finally {
-      zkClient1.stopAndWait();
-      zkClient2.stopAndWait();
+      zkClient1.stopAsync().awaitTerminated();
+      zkClient2.stopAsync().awaitTerminated();
     }
   }
 
@@ -470,14 +470,14 @@ public class ReentrantDistributedLockTest {
       }
 
     } finally {
-      zkClient1.stopAndWait();
-      zkClient2.stopAndWait();
+      zkClient1.stopAsync().awaitTerminated();
+      zkClient2.stopAsync().awaitTerminated();
     }
   }
 
   private ZKClientService createZKClient() {
     ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
 
     return zkClient;
   }

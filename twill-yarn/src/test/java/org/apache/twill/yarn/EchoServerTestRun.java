@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Maps;
 import com.google.common.io.LineReader;
@@ -39,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -93,8 +93,10 @@ public final class EchoServerTestRun extends BaseYarnTest {
         Socket socket = new Socket(discoverable.getSocketAddress().getAddress(),
                                    discoverable.getSocketAddress().getPort())
       ) {
-        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
-        LineReader reader = new LineReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+        PrintWriter writer = new PrintWriter(
+          new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+        LineReader reader = new LineReader(
+          new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
         writer.println(msg);
         Assert.assertEquals(msg, reader.readLine());
@@ -161,7 +163,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
   @Test
   public void testZKCleanup() throws Exception {
     final ZKClientService zkClient = ZKClientService.Builder.of(getZKConnectionString() + "/twill").build();
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
 
     try {
       TwillRunner runner = getTwillRunner();
@@ -222,7 +224,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
       }, 10000, 100, TimeUnit.MILLISECONDS);
 
     } finally {
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -239,8 +241,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
   private ResourceReport waitForAfterRestartResourceReport(TwillController controller, String runnable, long timeout,
                                                            TimeUnit timeoutUnit, int numOfResources,
                                                            @Nullable Map<Integer, String> instanceIdToContainerId) {
-    Stopwatch stopwatch = new Stopwatch();
-    stopwatch.start();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     do {
       ResourceReport report = controller.getResourceReport();
       if (report == null || report.getRunnableResources(runnable) == null) {
@@ -271,7 +272,7 @@ public final class EchoServerTestRun extends BaseYarnTest {
         }
         Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
       }
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     LOG.error("Unable to get different container ids for restart.");
     return null;

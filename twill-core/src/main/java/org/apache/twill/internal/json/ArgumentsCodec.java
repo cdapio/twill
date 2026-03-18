@@ -18,8 +18,6 @@
 package org.apache.twill.internal.json;
 
 import com.google.common.collect.ImmutableMultimap;
-import com.google.common.io.InputSupplier;
-import com.google.common.io.OutputSupplier;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,6 +37,7 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * Gson codec for {@link Arguments}.
@@ -48,16 +47,24 @@ public final class ArgumentsCodec implements JsonSerializer<Arguments>, JsonDese
   private static final Gson GSON = new GsonBuilder().registerTypeAdapter(Arguments.class, new ArgumentsCodec())
                                                     .create();
 
-  public static void encode(Arguments arguments, OutputSupplier<? extends Writer> writerSupplier) throws IOException {
-    try (Writer writer = writerSupplier.getOutput()) {
+  public static void encode(Arguments arguments, Callable<? extends Writer> writerSupplier) throws IOException {
+    try (Writer writer = writerSupplier.call()) {
       GSON.toJson(arguments, writer);
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 
 
-  public static Arguments decode(InputSupplier<? extends Reader> readerSupplier) throws IOException {
-    try (Reader reader = readerSupplier.getInput()) {
+  public static Arguments decode(Callable<? extends Reader> readerSupplier) throws IOException {
+    try (Reader reader = readerSupplier.call()) {
       return GSON.fromJson(reader, Arguments.class);
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 

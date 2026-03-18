@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
@@ -41,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -121,8 +121,10 @@ public final class ResourceReportTestRun extends BaseYarnTest {
         Socket socket = new Socket(discoverable.getSocketAddress().getHostName(),
                                    discoverable.getSocketAddress().getPort())
       ) {
-        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
-        LineReader reader = new LineReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+        PrintWriter writer = new PrintWriter(
+          new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+        LineReader reader = new LineReader(
+          new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
         writer.println(expected.getKey());
         Assert.assertEquals(expected.getValue(), reader.readLine());
       }
@@ -171,7 +173,8 @@ public final class ResourceReportTestRun extends BaseYarnTest {
       Socket socket = new Socket(discoverable.getSocketAddress().getAddress(),
                                  discoverable.getSocketAddress().getPort())
     ) {
-      PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
+      PrintWriter writer = new PrintWriter(
+        new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
       writer.println("0");
     }
 
@@ -306,8 +309,8 @@ public final class ResourceReportTestRun extends BaseYarnTest {
 
   private ResourceReport getResourceReport(TwillController controller, long timeoutMillis) {
     ResourceReport report = controller.getResourceReport();
-    Stopwatch stopwatch = new Stopwatch();
-    while (report == null && stopwatch.elapsedMillis() < timeoutMillis) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    while (report == null && stopwatch.elapsed(TimeUnit.MILLISECONDS) < timeoutMillis) {
       Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
       report = controller.getResourceReport();
     }

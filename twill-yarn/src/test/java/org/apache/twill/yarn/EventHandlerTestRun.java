@@ -105,8 +105,8 @@ public final class EventHandlerTestRun extends BaseYarnTest {
       .start();
     // Wait for the runnable to run and create runFile within 120 secs
     File runFile = new File(parentFolder, RUN_FILE);
-    Stopwatch stopwatch = new Stopwatch().start();
-    while (!runFile.exists() && stopwatch.elapsedTime(TimeUnit.SECONDS) < 120) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    while (!runFile.exists() && stopwatch.elapsed(TimeUnit.SECONDS) < 120) {
       TimeUnit.SECONDS.sleep(1);
     }
     Assert.assertTrue(runFile.exists());

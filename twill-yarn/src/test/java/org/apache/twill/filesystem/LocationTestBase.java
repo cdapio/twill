@@ -17,7 +17,6 @@
  */
 package org.apache.twill.filesystem;
 
-import com.google.common.base.Charsets;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -30,6 +29,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
@@ -82,7 +82,7 @@ public abstract class LocationTestBase {
 
     Location location2 = factory.create("/file2");
     String message = "Testing Message";
-    try (Writer writer = new OutputStreamWriter(location2.getOutputStream(), Charsets.UTF_8)) {
+    try (Writer writer = new OutputStreamWriter(location2.getOutputStream(), StandardCharsets.UTF_8)) {
       writer.write(message);
     }
     long length = location2.length();
@@ -91,7 +91,7 @@ public abstract class LocationTestBase {
     location2.renameTo(location);
 
     Assert.assertFalse(location2.exists());
-    try (Reader reader = new InputStreamReader(location.getInputStream(), Charsets.UTF_8)) {
+    try (Reader reader = new InputStreamReader(location.getInputStream(), StandardCharsets.UTF_8)) {
       Assert.assertEquals(message, CharStreams.toString(reader));
     }
     Assert.assertEquals(length, location.length());
