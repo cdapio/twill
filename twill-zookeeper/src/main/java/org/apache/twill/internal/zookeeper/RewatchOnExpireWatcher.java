@@ -19,6 +19,7 @@ package org.apache.twill.internal.zookeeper;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.twill.zookeeper.NodeChildren;
 import org.apache.twill.zookeeper.NodeData;
 import org.apache.twill.zookeeper.ZKClient;
@@ -122,7 +123,7 @@ final class RewatchOnExpireWatcher implements Watcher {
           LOG.error("Fail to re-set watch on exists for path " + path, t);
         }
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   private void children() {
@@ -168,7 +169,7 @@ final class RewatchOnExpireWatcher implements Watcher {
         }
         LOG.error("Fail to re-set watch on getChildren for path " + path, t);
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   private void data() {
@@ -202,6 +203,6 @@ final class RewatchOnExpireWatcher implements Watcher {
         }
         LOG.error("Fail to re-set watch on getData for path " + path, t);
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 }

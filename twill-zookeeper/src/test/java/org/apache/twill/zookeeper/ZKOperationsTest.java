@@ -34,11 +34,11 @@ public class ZKOperationsTest {
   @Test
   public void recursiveDelete() throws ExecutionException, InterruptedException, TimeoutException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService client = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      client.startAndWait();
+      client.startAsync().awaitRunning();
 
       try {
         client.create("/test1/test10/test101", null, CreateMode.PERSISTENT).get();
@@ -54,10 +54,10 @@ public class ZKOperationsTest {
         Assert.assertNull(client.exists("/test1").get(2, TimeUnit.SECONDS));
 
       } finally {
-        client.stopAndWait();
+        client.stopAsync().awaitTerminated();
       }
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 }

@@ -74,7 +74,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<String> get() {
                             return FailureRetryZKClient.super.create(path, data, createMode, createParent, acl);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -88,7 +88,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<Stat> get() {
                             return FailureRetryZKClient.super.exists(path, watcher);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -104,7 +104,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<NodeChildren> get() {
                             return FailureRetryZKClient.super.getChildren(path, watcher);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -118,7 +118,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<NodeData> get() {
                             return FailureRetryZKClient.super.getData(path, watcher);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -132,7 +132,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<Stat> get() {
                             return FailureRetryZKClient.super.setData(dataPath, data, version);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -148,7 +148,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<String> get() {
                             return FailureRetryZKClient.super.delete(deletePath, version);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -162,7 +162,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<ACLData> get() {
                             return FailureRetryZKClient.super.getACL(path);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -176,7 +176,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
                           public OperationFuture<Stat> get() {
                             return FailureRetryZKClient.super.setACL(path, acl, version);
                           }
-                        }));
+                        }), Threads.SAME_THREAD_EXECUTOR);
     return result;
   }
 
@@ -230,7 +230,7 @@ public final class FailureRetryZKClient extends ForwardingZKClient {
       SCHEDULER.schedule(new Runnable() {
         @Override
         public void run() {
-          Futures.addCallback(retryAction.get(), OperationFutureCallback.this);
+          Futures.addCallback(retryAction.get(), OperationFutureCallback.this, Threads.SAME_THREAD_EXECUTOR);
         }
       }, nextRetry, TimeUnit.MILLISECONDS);
 

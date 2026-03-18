@@ -148,7 +148,7 @@ public final class ZKOperations {
       public void onFailure(Throwable t) {
         completion.setException(t);
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   public static Cancellable watchChildren(final ZKClient zkClient, String path, ChildrenCallback callback) {
@@ -378,7 +378,7 @@ public final class ZKOperations {
       public void onFailure(Throwable t) {
         completion.setException(t);
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   private static <T> void watchChanges(final Operation<T> operation, final String path,
@@ -419,7 +419,7 @@ public final class ZKOperations {
         }
         LOG.error("Failed to watch data for path " + path + " " + t, t);
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   private ZKOperations() {

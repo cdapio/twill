@@ -258,7 +258,7 @@ public class ReentrantDistributedLock implements Lock {
           completion.setException(t);
         }
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
 
     // Gets the result from the completion
     try {
@@ -290,6 +290,7 @@ public class ReentrantDistributedLock implements Lock {
 
       @Override
       public void onSuccess(NodeChildren children) {
+
         // Find the lock node in case the creation step failed by matching the guid
         // See "Recoverable Errors and the GUID" in the ZooKeeper guide
         final String lockNode = lockPath == null ? findLockNode(children.getChildren(), guid) : lockPath;
@@ -353,7 +354,7 @@ public class ReentrantDistributedLock implements Lock {
               completion.setException(t);
             }
           }
-        });
+        }, Threads.SAME_THREAD_EXECUTOR);
       }
 
       @Override
@@ -364,7 +365,7 @@ public class ReentrantDistributedLock implements Lock {
           doAcquire(completion, waitForLock, guid, null);
         }
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   /**

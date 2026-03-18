@@ -19,7 +19,6 @@ package org.apache.twill.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import org.junit.Assert;
@@ -45,8 +44,8 @@ public class ServicesTest {
     Service s2 = new DummyService("s2", transiting);
     Service s3 = new DummyService("s3", transiting);
 
-    Futures.allAsList(Services.chainStart(s1, s2, s3).get()).get();
-    Futures.allAsList(Services.chainStop(s3, s2, s1).get()).get();
+    Services.chainStart(s1, s2, s3).get();
+    Services.chainStop(s3, s2, s1).get();
   }
 
   @Test
@@ -54,8 +53,8 @@ public class ServicesTest {
     Service service = new DummyService("s1", new AtomicBoolean());
     ListenableFuture<Service.State> completion = Services.getCompletionFuture(service);
 
-    service.start();
-    service.stop();
+    service.startAsync();
+    service.stopAsync();
 
     completion.get();
 
@@ -63,9 +62,9 @@ public class ServicesTest {
     service = new DummyService("s2", transiting);
     completion = Services.getCompletionFuture(service);
 
-    service.startAndWait();
+    service.startAsync().awaitRunning();
     transiting.set(true);
-    service.stop();
+    service.stopAsync();
 
     try {
       completion.get();

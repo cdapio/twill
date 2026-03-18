@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.container;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
@@ -52,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
+import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -179,7 +179,7 @@ public final class TwillContainerMain extends ServiceMain {
   private static Map<String, Map<String, String>> loadLogLevels() throws IOException {
     File file = new File(Constants.Files.LOG_LEVELS);
     if (file.exists()) {
-      try (Reader reader = Files.newReader(file, Charsets.UTF_8)) {
+      try (Reader reader = Files.newReader(file, StandardCharsets.UTF_8)) {
         Gson gson = new GsonBuilder().serializeNulls().create();
         return gson.fromJson(reader, new TypeToken<Map<String, Map<String, String>>>() { }.getType());
       }
@@ -188,8 +188,9 @@ public final class TwillContainerMain extends ServiceMain {
   }
 
   private static Arguments decodeArgs() throws IOException {
+    File file = new File(Constants.Files.RUNTIME_CONFIG_JAR, Constants.Files.ARGUMENTS);
     return ArgumentsCodec.decode(
-      Files.newReaderSupplier(new File(Constants.Files.RUNTIME_CONFIG_JAR, Constants.Files.ARGUMENTS), Charsets.UTF_8));
+      () -> java.nio.file.Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8));
   }
 
   @Override

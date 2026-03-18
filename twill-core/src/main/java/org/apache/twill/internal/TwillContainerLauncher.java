@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
@@ -40,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -167,7 +167,7 @@ public final class TwillContainerLauncher {
 
     TwillContainerControllerImpl controller =
       new TwillContainerControllerImpl(zkClient, runId, runtimeSpec.getName(), instanceId, processController);
-    controller.start();
+    controller.startAsync();
     return controller;
   }
 
@@ -237,12 +237,12 @@ public final class TwillContainerLauncher {
       }
       try {
         Gson gson = new Gson();
-        JsonElement json = gson.fromJson(new String(nodeData.getData(), Charsets.UTF_8), JsonElement.class);
+        JsonElement json = gson.fromJson(new String(nodeData.getData(), StandardCharsets.UTF_8), JsonElement.class);
         if (json.isJsonObject()) {
           JsonElement data = json.getAsJsonObject().get("data");
           if (data != null) {
             this.liveData = gson.fromJson(data, ContainerLiveNodeData.class);
-            LOG.info("Container LiveNodeData updated: " + new String(nodeData.getData(), Charsets.UTF_8));
+            LOG.info("Container LiveNodeData updated: " + new String(nodeData.getData(), StandardCharsets.UTF_8));
           }
         }
       } catch (Throwable t) {
@@ -292,9 +292,8 @@ public final class TwillContainerLauncher {
     }
 
     private void killAndWait(long maxWaitSecs) {
-      Stopwatch watch = new Stopwatch();
-      watch.start();
-      while (watch.elapsedTime(TimeUnit.SECONDS) < maxWaitSecs) {
+      Stopwatch watch = Stopwatch.createStarted();
+      while (watch.elapsed(TimeUnit.SECONDS) < maxWaitSecs) {
         // Kill the application
         try {
           kill();
@@ -312,7 +311,7 @@ public final class TwillContainerLauncher {
 
       // Timeout reached, runnable has not stopped
       LOG.error("Failed to kill runnable {}, instance {} after {} seconds", runnable, instanceId,
-                watch.elapsedTime(TimeUnit.SECONDS));
+                watch.elapsed(TimeUnit.SECONDS));
       // TODO: should we throw exception here?
     }
   }
