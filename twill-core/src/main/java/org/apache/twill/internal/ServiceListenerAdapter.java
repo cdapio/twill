@@ -22,7 +22,7 @@ import com.google.common.util.concurrent.Service;
 /**
  * An adapter for implementing {@link Service.Listener} with all method default to no-op.
  */
-public abstract class ServiceListenerAdapter implements Service.Listener {
+public abstract class ServiceListenerAdapter extends Service.Listener {
   @Override
   public void starting() {
     // No-op

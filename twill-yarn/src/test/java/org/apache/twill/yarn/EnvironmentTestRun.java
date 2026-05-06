@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.LineReader;
 import com.google.common.util.concurrent.SettableFuture;
@@ -33,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -66,8 +66,10 @@ public class EnvironmentTestRun extends BaseYarnTest {
         Socket socket = new Socket(discoverable.getSocketAddress().getAddress(),
                                    discoverable.getSocketAddress().getPort())
       ) {
-        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
-        LineReader reader = new LineReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+        PrintWriter writer = new PrintWriter(
+          new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+        LineReader reader = new LineReader(
+          new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
         writer.println("GREETING");
         Assert.assertEquals(entry.getValue(), reader.readLine());

@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.json;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
@@ -41,6 +40,7 @@ import org.apache.twill.internal.json.TwillSpecificationCodec.TwillSpecification
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.ParameterizedType;
@@ -85,7 +85,7 @@ public final class TwillRuntimeSpecificationAdapter {
   }
 
   public void toJson(TwillRuntimeSpecification spec, File file) throws IOException {
-    try (Writer writer = Files.newWriter(file, Charsets.UTF_8)) {
+    try (Writer writer = Files.newWriter(file, StandardCharsets.UTF_8)) {
       toJson(spec, writer);
     }
   }
@@ -99,7 +99,7 @@ public final class TwillRuntimeSpecificationAdapter {
   }
 
   public TwillRuntimeSpecification fromJson(File file) throws IOException {
-    try (Reader reader = Files.newReader(file, Charsets.UTF_8)) {
+    try (Reader reader = Files.newReader(file, StandardCharsets.UTF_8)) {
       return fromJson(reader);
     }
   }

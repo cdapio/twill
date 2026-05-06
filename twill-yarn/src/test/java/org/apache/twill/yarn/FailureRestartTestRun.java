@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 import com.google.common.io.LineReader;
 import org.apache.twill.api.Command;
@@ -30,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -85,8 +85,10 @@ public final class FailureRestartTestRun extends BaseYarnTest {
     for (Discoverable discoverable : discoverables) {
       InetSocketAddress socketAddress = discoverable.getSocketAddress();
       try (Socket socket = new Socket(socketAddress.getAddress(), socketAddress.getPort())) {
-        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
-        LineReader reader = new LineReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+        PrintWriter writer = new PrintWriter(
+          new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+        LineReader reader = new LineReader(
+          new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
         String msg = "Failure";
         writer.println(msg);
