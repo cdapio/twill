@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Tests {@link EventHandler} methods
+ * Tests {@link EventHandler} methods.
  */
 public final class EventHandlerTestRun extends BaseYarnTest {
   private static final Logger LOG = LoggerFactory.getLogger(EventHandlerTestRun.class);

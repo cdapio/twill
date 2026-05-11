@@ -205,7 +205,7 @@ public class YarnUtils {
   }
 
   /**
-   * When hadoop_version > 2.8.0, class HAUtil has no method cloneDelegationTokenForLogicalUri(Configuration config)
+   * When hadoop_version > 2.8.0, class HAUtil has no method cloneDelegationTokenForLogicalUri(Configuration config).
    *
    */
   private static void cloneDelegationTokenForLogicalUri(UserGroupInformation ugi, URI haUri,
@@ -219,7 +219,7 @@ public class YarnUtils {
 
 
   /**
-   * When hadoop_version > 2.8.0, class DFSUtils has no method getHaNnRpcAddresses(Configuration config)
+   * When hadoop_version > 2.8.0, class DFSUtils has no method getHaNnRpcAddresses(Configuration config).
    * @param config
    * @return
    */

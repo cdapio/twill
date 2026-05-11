@@ -28,7 +28,6 @@ import org.apache.twill.api.TwillRunResources;
 import org.apache.twill.api.TwillSpecification;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.api.logging.PrinterLogHandler;
-
 import org.apache.twill.common.Threads;
 import org.junit.Assert;
 import org.junit.Test;

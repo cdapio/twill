@@ -87,7 +87,8 @@ public class KafkaTest {
   @Test
   public void testKafkaClientReconnect() throws Exception {
     String topic = "backoff";
-    Properties kafkaServerConfig = generateKafkaConfig(zkServer.getConnectionStr() + "/backoff");
+    File logDir = TMP_FOLDER.newFolder();
+    Properties kafkaServerConfig = generateKafkaConfig(zkServer.getConnectionStr() + "/backoff", logDir);
     EmbeddedKafkaServer server = new EmbeddedKafkaServer(kafkaServerConfig);
 
     ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr() + "/backoff").build();
@@ -132,17 +133,17 @@ public class KafkaTest {
 
           // Start the server again.
           // Needs to create a new instance with the same config since guava service cannot be restarted
-          server = new EmbeddedKafkaServer(kafkaServerConfig);
+          server = new EmbeddedKafkaServer(generateKafkaConfig(zkServer.getConnectionStr() + "/backoff", logDir));
           server.startAsync().awaitRunning();
 
           // Wait a little while to make sure changes is reflected in broker service
           TimeUnit.SECONDS.sleep(3);
 
           // Publish another message
-          createPublishThread(kafkaClient, topic, Compression.NONE, "Second message", 1).start();
+          createPublishThread(kafkaClient, topic, Compression.NONE, "Second message", 1, 1).start();
 
           // Should be able to get the second message
-          Assert.assertEquals("0 Second message", queue.poll(60, TimeUnit.SECONDS));
+          Assert.assertEquals("1 Second message", queue.poll(60, TimeUnit.SECONDS));
 
           cancel.cancel();
         } finally {

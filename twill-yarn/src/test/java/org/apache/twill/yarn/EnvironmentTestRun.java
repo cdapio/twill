@@ -32,10 +32,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;

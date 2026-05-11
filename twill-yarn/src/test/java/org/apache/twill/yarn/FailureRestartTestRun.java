@@ -29,13 +29,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.BufferedReader;
-import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 

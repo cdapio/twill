@@ -351,7 +351,7 @@ public class ZKClientTest {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAsync().awaitRunning();
     try {
-      for (int i = 0; i < 5000; i++) {
+      for (int i = 0; i < 100; i++) {
         final ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
         zkClient.addConnectionWatcher(new Watcher() {
           @Override

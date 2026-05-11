@@ -54,7 +54,7 @@ public class JvmOptionsTestRun extends BaseYarnTest {
   }
 
   /**
-   * Application for testing extra jvm options
+   * Application for testing extra jvm options.
    */
   public static final class JvmOptionsApplication implements TwillApplication {
 
