@@ -118,6 +118,8 @@ public class TwillTester extends ExternalResource {
     LOG.info("Starting Mini DFS on path {}", miniDFSDir);
     Configuration fsConf = new HdfsConfiguration(new Configuration());
     fsConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, miniDFSDir.getAbsolutePath());
+    fsConf.set("dfs.namenode.resource.du.reserved", "0");
+    fsConf.set("dfs.namenode.safemode.threshold-pct", "0.0f");
 
     for (Map.Entry<String, String> entry : extraConfig.entrySet()) {
       fsConf.set(entry.getKey(), entry.getValue());
@@ -136,6 +138,8 @@ public class TwillTester extends ExternalResource {
     conf.set("yarn.nodemanager.vmem-check-enabled", "false");
     conf.set("yarn.scheduler.minimum-allocation-mb", "128");
     conf.set("yarn.nodemanager.delete.debug-delay-sec", "3600");
+    conf.setBoolean("yarn.nodemanager.disk-health-checker.enable", false);
+    conf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage", "100.0");
 
     conf.set(Configs.Keys.LOCAL_STAGING_DIRECTORY, tmpFolder.newFolder().getAbsolutePath());
 

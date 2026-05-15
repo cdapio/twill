@@ -350,6 +350,9 @@ public class KafkaTest {
     // Use a really small file size to force some flush to happen
     prop.setProperty("log.file.size", "1024");
     prop.setProperty("log.default.flush.interval.ms", "1000");
+    prop.setProperty("log.cleaner.enable", "false");
+    prop.setProperty("log.cleaner.threads", "1");
+    prop.setProperty("log.cleaner.dedupe.buffer.size", "10485760");
     return prop;
   }
 }

@@ -208,6 +208,9 @@ public final class ApplicationMasterMain extends ServiceMain {
       // Setting it to lower value allow the AM to retry multiple times if race happens.
       prop.setProperty("zookeeper.connection.timeout.ms", "3000");
       prop.setProperty("default.replication.factor", "1");
+      prop.setProperty("log.cleaner.enable", "false");
+      prop.setProperty("log.cleaner.threads", "1");
+      prop.setProperty("log.cleaner.dedupe.buffer.size", "10485760");
       return prop;
     }
   }

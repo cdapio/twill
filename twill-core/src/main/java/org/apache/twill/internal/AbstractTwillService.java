@@ -94,6 +94,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   private final AtomicLong terminationTimeoutMillis;
   private ExecutorService messageCallbackExecutor;
   private Cancellable watcherCancellable;
+  private volatile Runnable stopMessageRemover;
 
   protected AbstractTwillService(final ZKClient zkClient, RunId runId) {
     this.zkClient = zkClient;
@@ -203,6 +204,11 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     try {
       doStop(getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS));
     } finally {
+      Runnable remover = stopMessageRemover;
+      if (remover != null) {
+        stopMessageRemover = null;
+        remover.run();
+      }
       // Given at most 5 seconds to cleanup ZK nodes
       removeLiveNode().get(5, TimeUnit.SECONDS);
       LOG.info("Service {} with runId {} shutdown completed", serviceName(), runId.getId());
@@ -327,17 +333,26 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     long timeoutMillis = SystemMessages.getTimeoutMillis(message.getCommand(),
                                                          Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
     terminationTimeoutMillis.compareAndSet(-1L, timeoutMillis);
+    stopMessageRemover = messageRemover;
 
     addListener(new Listener() {
       @Override
       public void terminated(State from) {
-        messageRemover.run();
+        Runnable remover = stopMessageRemover;
+        if (remover != null) {
+          stopMessageRemover = null;
+          remover.run();
+        }
       }
 
       @Override
       public void failed(State from, Throwable failure) {
         LOG.error("Stop service failed upon STOP command", failure);
-        messageRemover.run();
+        Runnable remover = stopMessageRemover;
+        if (remover != null) {
+          stopMessageRemover = null;
+          remover.run();
+        }
       }
     }, MoreExecutors.directExecutor());
     // Stop this service.

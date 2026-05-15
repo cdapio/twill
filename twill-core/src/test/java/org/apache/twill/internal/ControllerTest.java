@@ -212,7 +212,7 @@ public class ControllerTest {
         return null;
       }
     };
-    controller.startAsync().awaitTerminated();
+    controller.startAsync().awaitRunning();
     return controller;
   }
 }

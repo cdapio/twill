@@ -240,7 +240,6 @@ public final class EchoServerTestRun extends BaseYarnTest {
                                                            TimeUnit timeoutUnit, int numOfResources,
                                                            @Nullable Map<Integer, String> instanceIdToContainerId) {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
       if (report == null || report.getRunnableResources(runnable) == null) {

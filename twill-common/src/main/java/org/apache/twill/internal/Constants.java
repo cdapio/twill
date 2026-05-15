@@ -25,9 +25,9 @@ public final class Constants {
   public static final String LOG_TOPIC = "log";
 
   /** Maximum number of seconds for AM to start. */
-  public static final int APPLICATION_MAX_START_SECONDS = 60;
+  public static final int APPLICATION_MAX_START_SECONDS = 180;
   /** Maximum number of seconds for AM to stop. */
-  public static final int APPLICATION_MAX_STOP_SECONDS = 60;
+  public static final int APPLICATION_MAX_STOP_SECONDS = 180;
 
   public static final long PROVISION_TIMEOUT = 30000;
 

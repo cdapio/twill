@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.zookeeper.server.ServerCnxnFactory;
+import org.apache.zookeeper.server.ZKDatabase;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.slf4j.Logger;
@@ -55,9 +56,12 @@ public final class InMemoryZKServer implements Service {
       FileTxnSnapLog ftxn = new FileTxnSnapLog(dataDir, dataDir);
       zkServer.setTxnLogFactory(ftxn);
       zkServer.setTickTime(tickTime);
+      zkServer.setMinSessionTimeout(-1);
+      zkServer.setMaxSessionTimeout(-1);
+      zkServer.setZKDatabase(new ZKDatabase(ftxn));
 
       factory = ServerCnxnFactory.createFactory();
-      factory.configure(getAddress(port), -1);
+      factory.configure(getAddress(port), 1024);
       factory.startup(zkServer);
 
       LOG.info("In memory ZK started: " + getConnectionStr());
@@ -102,7 +106,7 @@ public final class InMemoryZKServer implements Service {
 
   public String getConnectionStr() {
     InetSocketAddress addr = factory.getLocalAddress();
-    return String.format("%s:%d", addr.getHostName(), addr.getPort());
+    return String.format("%s:%d", addr.getAddress().getHostAddress(), addr.getPort());
   }
 
   public InetSocketAddress getLocalAddress() {

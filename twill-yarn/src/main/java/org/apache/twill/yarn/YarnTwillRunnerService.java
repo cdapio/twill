@@ -180,7 +180,11 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
 
   @Override
   public void start() {
-    serviceDelegate.startAsync().awaitRunning();
+    if (serviceDelegate.state() == Service.State.NEW) {
+      serviceDelegate.startAsync().awaitRunning();
+    } else {
+      serviceDelegate.awaitRunning();
+    }
   }
 
   @Override

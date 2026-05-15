@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Test for {@link LeaderElection}.
  */
-public class LeaderElectionTest {
+  public class LeaderElectionTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(LeaderElectionTest.class);
 

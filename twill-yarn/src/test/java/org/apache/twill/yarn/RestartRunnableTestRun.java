@@ -285,7 +285,6 @@ public class RestartRunnableTestRun extends BaseYarnTest {
   private void waitForContainers(TwillController controller, int count, long timeout, TimeUnit timeoutUnit)
     throws Exception {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    stopwatch.start();
     int yarnContainers = 0;
     int twillContainers = 0;
     do {
@@ -307,7 +306,6 @@ public class RestartRunnableTestRun extends BaseYarnTest {
   private void waitForInstance(TwillController controller, String runnable, String yarnInstanceId,
                                long timeout, TimeUnit timeoutUnit) throws InterruptedException, TimeoutException {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
       if (report != null && report.getRunnableResources(runnable) != null) {

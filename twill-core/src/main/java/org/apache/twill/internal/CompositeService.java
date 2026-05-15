@@ -57,6 +57,9 @@ public final class CompositeService extends AbstractIdleService {
       } catch (UncheckedExecutionException e) {
         failureCause = e.getCause();
         break;
+      } catch (IllegalStateException e) {
+        failureCause = service.failureCause();
+        break;
       }
     }
 
@@ -96,6 +99,12 @@ public final class CompositeService extends AbstractIdleService {
           failureCause = e.getCause();
         } else {
           // Log for sub-sequence service shutdown error, as only the first failure cause will be thrown.
+          LOG.warn("Failed to stop service {}", service, e);
+        }
+      } catch (IllegalStateException e) {
+        if (failureCause == null) {
+          failureCause = service.failureCause();
+        } else {
           LOG.warn("Failed to stop service {}", service, e);
         }
       }

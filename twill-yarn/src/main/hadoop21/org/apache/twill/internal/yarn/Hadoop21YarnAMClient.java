@@ -86,7 +86,7 @@ public class Hadoop21YarnAMClient extends AbstractYarnAMClient<AMRMClient.Contai
                                                                                       trackerAddr.getPort(),
                                                                                       trackerUrl.toString());
     maxCapability = response.getMaximumResourceCapability();
-    nmClient.startAsync().awaitTerminated();
+    nmClient.startAsync().awaitRunning();
   }
 
   @Override

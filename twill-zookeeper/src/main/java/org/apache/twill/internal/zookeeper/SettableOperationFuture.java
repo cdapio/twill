@@ -53,7 +53,11 @@ public final class SettableOperationFuture<V> extends AbstractFuture<V> implemen
     super.addListener(new Runnable() {
       @Override
       public void run() {
-        exec.execute(listener);
+        try {
+          exec.execute(listener);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+          // Executor is shut down, ignore
+        }
       }
     }, executor);
   }

@@ -162,7 +162,6 @@ public class LogLevelTestRun extends BaseYarnTest {
                                   TimeUnit timeoutUnit, @Nullable LogEntry.Level expected) throws InterruptedException {
 
     Stopwatch stopwatch = Stopwatch.createStarted();
-    stopwatch.start();
     do {
       ResourceReport report = controller.getResourceReport();
       if (report == null || report.getRunnableResources(runnable) == null) {

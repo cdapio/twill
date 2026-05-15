@@ -90,7 +90,6 @@ public class SessionExpireTestRun extends BaseYarnTest {
     QueryExp query = Query.isInstanceOf(new StringValueExp(ConnectionMXBean.class.getName()));
 
     Stopwatch stopwatch = Stopwatch.createStarted();
-    stopwatch.start();
     do {
       // Find the AM session and expire it
       Set<ObjectName> connectionBeans = mbeanServer.queryNames(ObjectName.WILDCARD, query);
