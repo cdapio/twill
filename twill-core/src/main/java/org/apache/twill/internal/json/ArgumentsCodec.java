@@ -18,8 +18,6 @@
 package org.apache.twill.internal.json;
 
 import com.google.common.collect.ImmutableMultimap;
-import com.google.common.io.InputSupplier;
-import com.google.common.io.OutputSupplier;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -48,17 +46,13 @@ public final class ArgumentsCodec implements JsonSerializer<Arguments>, JsonDese
   private static final Gson GSON = new GsonBuilder().registerTypeAdapter(Arguments.class, new ArgumentsCodec())
                                                     .create();
 
-  public static void encode(Arguments arguments, OutputSupplier<? extends Writer> writerSupplier) throws IOException {
-    try (Writer writer = writerSupplier.getOutput()) {
-      GSON.toJson(arguments, writer);
-    }
+  public static void encode(Arguments arguments, Writer writer) throws IOException {
+    GSON.toJson(arguments, writer);
   }
 
 
-  public static Arguments decode(InputSupplier<? extends Reader> readerSupplier) throws IOException {
-    try (Reader reader = readerSupplier.getInput()) {
-      return GSON.fromJson(reader, Arguments.class);
-    }
+  public static Arguments decode(Reader reader) throws IOException {
+    return GSON.fromJson(reader, Arguments.class);
   }
 
   @Override

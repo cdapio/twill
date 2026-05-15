@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.security.Credentials;
@@ -188,8 +189,10 @@ public final class TwillContainerMain extends ServiceMain {
   }
 
   private static Arguments decodeArgs() throws IOException {
-    return ArgumentsCodec.decode(
-      Files.newReaderSupplier(new File(Constants.Files.RUNTIME_CONFIG_JAR, Constants.Files.ARGUMENTS), Charsets.UTF_8));
+    File argsFile = new File(Constants.Files.RUNTIME_CONFIG_JAR, Constants.Files.ARGUMENTS);
+    try (Reader reader = Files.newReader(argsFile, StandardCharsets.UTF_8)) {
+      return ArgumentsCodec.decode(reader);
+    }
   }
 
   @Override

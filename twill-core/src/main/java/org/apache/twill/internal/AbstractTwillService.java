@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.AbstractExecutionThreadService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -93,6 +94,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   private final AtomicLong terminationTimeoutMillis;
   private ExecutorService messageCallbackExecutor;
   private Cancellable watcherCancellable;
+  private volatile Runnable stopMessageRemover;
 
   protected AbstractTwillService(final ZKClient zkClient, RunId runId) {
     this.zkClient = zkClient;
@@ -144,7 +146,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
   @Override
   public ListenableFuture<String> onReceived(String messageId, Message message) {
     LOG.info("Message received: {}", message);
-    return Futures.immediateCheckedFuture(messageId);
+    return Futures.immediateFuture(messageId);
   }
 
   @Override
@@ -164,10 +166,10 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
       @Override
       public void process(WatchedEvent event) {
         if (event.getState() == Event.KeeperState.Expired) {
-          LOG.warn("ZK Session expired for service {} with runId {}.", getServiceName(), runId.getId());
+          LOG.warn("ZK Session expired for service {} with runId {}.", serviceName(), runId.getId());
           expired = true;
         } else if (event.getState() == Event.KeeperState.SyncConnected && expired) {
-          LOG.info("Reconnected after expiration for service {} with runId {}", getServiceName(), runId.getId());
+          LOG.info("Reconnected after expiration for service {} with runId {}", serviceName(), runId.getId());
           expired = false;
           logIfFailed(createLiveNode());
         }
@@ -202,9 +204,14 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     try {
       doStop(getTerminationTimeoutMillis(Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS));
     } finally {
+      Runnable remover = stopMessageRemover;
+      if (remover != null) {
+        stopMessageRemover = null;
+        remover.run();
+      }
       // Given at most 5 seconds to cleanup ZK nodes
       removeLiveNode().get(5, TimeUnit.SECONDS);
-      LOG.info("Service {} with runId {} shutdown completed", getServiceName(), runId.getId());
+      LOG.info("Service {} with runId {} shutdown completed", serviceName(), runId.getId());
     }
   }
 
@@ -326,20 +333,30 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     long timeoutMillis = SystemMessages.getTimeoutMillis(message.getCommand(),
                                                          Constants.APPLICATION_MAX_STOP_SECONDS, TimeUnit.SECONDS);
     terminationTimeoutMillis.compareAndSet(-1L, timeoutMillis);
+    stopMessageRemover = messageRemover;
 
+    addListener(new Listener() {
+      @Override
+      public void terminated(State from) {
+        Runnable remover = stopMessageRemover;
+        if (remover != null) {
+          stopMessageRemover = null;
+          remover.run();
+        }
+      }
+
+      @Override
+      public void failed(State from, Throwable failure) {
+        LOG.error("Stop service failed upon STOP command", failure);
+        Runnable remover = stopMessageRemover;
+        if (remover != null) {
+          stopMessageRemover = null;
+          remover.run();
+        }
+      }
+    }, MoreExecutors.directExecutor());
     // Stop this service.
-    Futures.addCallback(stop(), new FutureCallback<State>() {
-      @Override
-      public void onSuccess(State result) {
-        messageRemover.run();
-      }
-
-      @Override
-      public void onFailure(Throwable t) {
-        LOG.error("Stop service failed upon STOP command", t);
-        messageRemover.run();
-      }
-    }, Threads.SAME_THREAD_EXECUTOR);
+    stopAsync();
     return true;
   }
 
@@ -391,7 +408,7 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
 
       @Override
       public void onFailure(Throwable t) {
-        LOG.error("Operation failed for service {} with runId {}", getServiceName(), runId, t);
+        LOG.error("Operation failed for service {} with runId {}", serviceName(), runId, t);
       }
     }, Threads.SAME_THREAD_EXECUTOR);
   }

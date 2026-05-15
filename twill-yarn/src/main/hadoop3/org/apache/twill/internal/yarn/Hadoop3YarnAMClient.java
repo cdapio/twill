@@ -15,36 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.twill.internal;
+package org.apache.twill.internal.yarn;
 
-import com.google.common.util.concurrent.Service;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
- * An adapter for implementing {@link Service.Listener} with all method default to no-op.
+ * Wrapper class for AMRMClient for Hadoop version 3.3.6 or greater.
  */
-public abstract class ServiceListenerAdapter extends Service.Listener {
-  @Override
-  public void starting() {
-    // No-op
+public final class Hadoop3YarnAMClient extends Hadoop22YarnAMClient {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Hadoop3YarnAMClient.class);
+
+  public Hadoop3YarnAMClient(Configuration conf) {
+    super(conf);
   }
 
   @Override
-  public void running() {
-    // No-op
-  }
-
-  @Override
-  public void stopping(Service.State from) {
-    // No-op
-  }
-
-  @Override
-  public void terminated(Service.State from) {
-    // No-op
-  }
-
-  @Override
-  public void failed(Service.State from, Throwable failure) {
-    // No-op
+  protected final ContainerId containerIdLookup(String containerIdStr) {
+    return (ContainerId.fromString(containerIdStr));
   }
 }

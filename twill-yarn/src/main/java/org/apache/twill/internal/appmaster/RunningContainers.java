@@ -36,6 +36,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.twill.api.EventHandler;
 import org.apache.twill.api.ResourceReport;
@@ -43,6 +44,7 @@ import org.apache.twill.api.RunId;
 import org.apache.twill.api.RuntimeSpecification;
 import org.apache.twill.api.TwillRunResources;
 import org.apache.twill.api.logging.LogEntry;
+import org.apache.twill.common.Threads;
 import org.apache.twill.filesystem.Location;
 import org.apache.twill.internal.Constants;
 import org.apache.twill.internal.ContainerExitCodes;
@@ -581,7 +583,7 @@ final class RunningContainers {
           }
         }
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
   }
 
   /**
@@ -735,7 +737,7 @@ final class RunningContainers {
     try {
       Gson gson = new GsonBuilder().serializeNulls().create();
       String jsonStr = gson.toJson(logLevels);
-      String fileName = Hashing.md5().hashString(jsonStr) + "." + Constants.Files.LOG_LEVELS;
+      String fileName = Hashing.md5().hashString(jsonStr, StandardCharsets.UTF_8) + "." + Constants.Files.LOG_LEVELS;
       Location location = applicationLocation.append(fileName);
       if (!location.exists()) {
         try (Writer writer = new OutputStreamWriter(location.getOutputStream(), Charsets.UTF_8)) {

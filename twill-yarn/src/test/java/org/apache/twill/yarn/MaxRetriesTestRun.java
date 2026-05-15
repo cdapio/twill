@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.twill.discovery.ServiceDiscovered;
 
 /**
  * Unit tests for RunningContainers class.
@@ -82,7 +83,6 @@ public final class MaxRetriesTestRun extends BaseYarnTest {
     final int maxRetries = 3;
     final AtomicInteger retriesSeen = new AtomicInteger(0);
     final CountDownLatch retriesExhausted = new CountDownLatch(1);
-    final CountDownLatch allRunning = new CountDownLatch(1);
 
     // start with 2 instances
     ResourceSpecification resource = ResourceSpecification.Builder.with().setVirtualCores(1)
@@ -99,22 +99,20 @@ public final class MaxRetriesTestRun extends BaseYarnTest {
           if (logEntry.getMessage().contains("Retries exhausted")) {
             retriesExhausted.countDown();
           }
-          if (logEntry.getMessage().contains("fully provisioned with 2 instances")) {
-            allRunning.countDown();
-          }
         }
       }).start();
 
     try {
       // wait for initial instances to have started
-      allRunning.await();
+      ServiceDiscovered discovered = controller.discoverService("failingInstance");
+      Assert.assertTrue(waitForSize(discovered, 2, 120));
 
       /*
        * now increase the number of instances. these should fail since there instance ids are > 1. afterwards, the
        * number of retries should be 3 since only this one instance failed.
        */
       controller.changeInstances(FailingInstanceServer.class.getSimpleName(), 3);
-      retriesExhausted.await();
+      Assert.assertTrue(retriesExhausted.await(120, TimeUnit.SECONDS));
       Assert.assertEquals(3, retriesSeen.get());
 
     } finally {
@@ -148,6 +146,7 @@ public final class MaxRetriesTestRun extends BaseYarnTest {
         throw new RuntimeException("FAIL early FAIL often");
       } else {
         LOG.info("Instance {} is running", getContext().getInstanceId());
+        getContext().announce("failingInstance", 12345);
         while (true) {
           try {
             Thread.sleep(100);

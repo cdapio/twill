@@ -252,9 +252,8 @@ public class LogLevelChangeTestRun extends BaseYarnTest {
                                Map<String, LogEntry.Level> expectedArgs,
                                int expectedInstances) throws InterruptedException {
 
-    Stopwatch stopwatch = new Stopwatch();
-    stopwatch.start();
-    while (stopwatch.elapsedTime(timeoutUnit) < timeout) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    while (stopwatch.elapsed(timeoutUnit) < timeout) {
       ResourceReport report = controller.getResourceReport();
 
       if (report == null || report.getRunnableResources(runnable) == null) {

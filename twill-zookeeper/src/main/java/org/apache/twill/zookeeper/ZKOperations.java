@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.twill.common.Cancellable;
 import org.apache.twill.common.Threads;
@@ -148,7 +149,7 @@ public final class ZKOperations {
       public void onFailure(Throwable t) {
         completion.setException(t);
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   public static Cancellable watchChildren(final ZKClient zkClient, String path, ChildrenCallback callback) {
@@ -378,7 +379,7 @@ public final class ZKOperations {
       public void onFailure(Throwable t) {
         completion.setException(t);
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   private static <T> void watchChanges(final Operation<T> operation, final String path,
@@ -419,7 +420,7 @@ public final class ZKOperations {
         }
         LOG.error("Failed to watch data for path " + path + " " + t, t);
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   private ZKOperations() {

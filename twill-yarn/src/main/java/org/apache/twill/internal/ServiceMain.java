@@ -81,7 +81,7 @@ public abstract class ServiceMain {
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
-        mainService.stopAndWait();
+        mainService.stopAsync().awaitTerminated();
       }
     });
 
@@ -110,7 +110,7 @@ public abstract class ServiceMain {
         throw Throwables.propagate(t);
       }
     } finally {
-      requiredServices.stopAndWait();
+      requiredServices.stopAsync().awaitTerminated();
 
       ILoggerFactory loggerFactory = LoggerFactory.getILoggerFactory();
       if (loggerFactory instanceof LoggerContext) {

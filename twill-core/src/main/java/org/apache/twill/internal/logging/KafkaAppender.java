@@ -184,9 +184,18 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   public void forceFlush() {
     try {
-      scheduler.submit(flushTask).get(2, TimeUnit.SECONDS);
+      scheduler.submit(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            publishLogs(60L, TimeUnit.SECONDS);
+          } catch (Exception e) {
+            addError("Failed to push logs to Kafka during force flush.", e);
+          }
+        }
+      }).get(60, TimeUnit.SECONDS);
     } catch (Exception e) {
-      addError("Failed to force log flush in 2 seconds.", e);
+      addError("Failed to force log flush in 60 seconds.", e);
     }
   }
 
@@ -206,9 +215,16 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
    * @throws TimeoutException If timeout reached before publish completed.
    */
   private int publishLogs(long timeout, TimeUnit timeoutUnit) throws TimeoutException {
-    List<ByteBuffer> logs = Lists.newArrayListWithExpectedSize(bufferedSize.get());
-
+    List<String> cachedLogs = Lists.newArrayListWithExpectedSize(bufferedSize.get());
     for (String json : Iterables.consumingIterable(buffer)) {
+      cachedLogs.add(json);
+    }
+    if (cachedLogs.isEmpty()) {
+      return 0;
+    }
+
+    List<ByteBuffer> logs = Lists.newArrayListWithExpectedSize(cachedLogs.size());
+    for (String json : cachedLogs) {
       logs.add(Charsets.UTF_8.encode(json));
     }
 
@@ -218,8 +234,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     }
 
     try {
-      Stopwatch stopwatch = new Stopwatch();
-      stopwatch.start();
+      Stopwatch stopwatch = Stopwatch.createStarted();
       long publishTimeout = timeout;
 
       do {
@@ -230,14 +245,18 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
         } catch (ExecutionException e) {
           addError("Failed to publish logs to Kafka.", e);
           TimeUnit.NANOSECONDS.sleep(backOffTime);
-          publishTimeout -= stopwatch.elapsedTime(timeoutUnit);
+          publishTimeout -= stopwatch.elapsed(timeoutUnit);
           stopwatch.reset();
           stopwatch.start();
         }
       } while (publishTimeout > 0);
     } catch (InterruptedException e) {
       addWarn("Logs publish to Kafka interrupted.", e);
+    } catch (TimeoutException e) {
+      buffer.addAll(cachedLogs);
+      throw e;
     }
+    buffer.addAll(cachedLogs);
     return 0;
   }
 

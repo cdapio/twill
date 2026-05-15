@@ -53,9 +53,12 @@ public final class CompositeService extends AbstractIdleService {
 
     for (Service service : services) {
       try {
-        service.startAndWait();
+        service.startAsync().awaitRunning();
       } catch (UncheckedExecutionException e) {
         failureCause = e.getCause();
+        break;
+      } catch (IllegalStateException e) {
+        failureCause = service.failureCause();
         break;
       }
     }
@@ -88,7 +91,7 @@ public final class CompositeService extends AbstractIdleService {
       Service service = itor.next();
       try {
         if (service.isRunning() || service.state() == State.STARTING) {
-          service.stopAndWait();
+          service.stopAsync().awaitTerminated();
         }
       } catch (UncheckedExecutionException e) {
         // Just catch as we want all services stopped
@@ -96,6 +99,12 @@ public final class CompositeService extends AbstractIdleService {
           failureCause = e.getCause();
         } else {
           // Log for sub-sequence service shutdown error, as only the first failure cause will be thrown.
+          LOG.warn("Failed to stop service {}", service, e);
+        }
+      } catch (IllegalStateException e) {
+        if (failureCause == null) {
+          failureCause = service.failureCause();
+        } else {
           LOG.warn("Failed to stop service {}", service, e);
         }
       }

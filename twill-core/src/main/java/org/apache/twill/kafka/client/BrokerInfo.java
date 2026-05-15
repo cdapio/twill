@@ -17,6 +17,7 @@
  */
 package org.apache.twill.kafka.client;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 /**
@@ -57,7 +58,7 @@ public final class BrokerInfo {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(BrokerInfo.class)
+    return MoreObjects.toStringHelper(BrokerInfo.class)
                   .add("host", host)
                   .add("port", port)
                   .toString();

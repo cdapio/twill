@@ -82,6 +82,9 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
   private static final Function<BrokerInfo, String> BROKER_INFO_TO_ADDRESS = new Function<BrokerInfo, String>() {
     @Override
     public String apply(BrokerInfo input) {
+      if (input == null) {
+        return null;
+      }
       return String.format("%s:%d", input.getHost(), input.getPort());
     }
   };
@@ -140,7 +143,8 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
     }
 
     final SettableFuture<?> readyFuture = SettableFuture.create();
-    final AtomicReference<List<BrokerInfo>> brokers = new AtomicReference<>(Collections.<BrokerInfo>emptyList());
+    final AtomicReference<List<Supplier<BrokerInfo>>> brokers =
+      new AtomicReference<>(Collections.<Supplier<BrokerInfo>>emptyList());
 
     actOnExists(BROKER_IDS_PATH, new Runnable() {
 
@@ -156,9 +160,7 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
               // For each children node, get the BrokerInfo from the brokerInfo cache.
               brokers.set(
                 ImmutableList.copyOf(
-                  Iterables.transform(
-                    brokerInfos.getAll(Iterables.transform(result.getChildren(), BROKER_ID_TRANSFORMER)).values(),
-                    Suppliers.<BrokerInfo>supplierFunction())));
+                  brokerInfos.getAll(Iterables.transform(result.getChildren(), BROKER_ID_TRANSFORMER)).values()));
               readyFuture.set(null);
 
               for (ListenerExecutor listener : listeners) {
@@ -188,7 +190,7 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
               // If the ids node is deleted, clear the broker list and re-watch.
               // This could happen when the Kafka server is restarted and have the ZK node cleanup
               // The readyFuture for this call doesn't matter, as we don't need to block on anything
-              brokers.set(Collections.<BrokerInfo>emptyList());
+              brokers.set(Collections.<Supplier<BrokerInfo>>emptyList());
               for (ListenerExecutor listener : listeners) {
                 listener.changed(ZKBrokerService.this);
               }
@@ -200,7 +202,12 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
       }
     }, readyFuture, FAILURE_RETRY_SECONDS, TimeUnit.SECONDS);
 
-    brokerList = this.<Iterable<BrokerInfo>>createSupplier(brokers);
+    brokerList = new Supplier<Iterable<BrokerInfo>>() {
+      @Override
+      public Iterable<BrokerInfo> get() {
+        return Iterables.transform(brokers.get(), Suppliers.<BrokerInfo>supplierFunction());
+      }
+    };
     try {
       readyFuture.get();
     } catch (Exception e) {
@@ -211,7 +218,7 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
 
   @Override
   public String getBrokerList() {
-    return Joiner.on(',').join(Iterables.transform(getBrokers(), BROKER_INFO_TO_ADDRESS));
+    return Joiner.on(',').skipNulls().join(Iterables.transform(getBrokers(), BROKER_INFO_TO_ADDRESS));
   }
 
   @Override
@@ -253,6 +260,9 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
                 T value = decodeNodeData(result, resultType);
                 resultValue.set(value);
                 readyFuture.set(value);
+                for (ListenerExecutor listener : listeners) {
+                  listener.changed(ZKBrokerService.this);
+                }
               }
 
               @Override

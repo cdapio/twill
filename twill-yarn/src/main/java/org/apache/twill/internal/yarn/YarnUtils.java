@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hdfs.DFSUtil;
 import org.apache.hadoop.hdfs.HAUtil;
 import org.apache.hadoop.io.DataInputByteBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -75,29 +74,32 @@ public class YarnUtils {
     HADOOP_26
   }
 
-  private static boolean hasDFSUtilClient = false; // use this to judge if the hadoop version is above 2.8
-
-  private static boolean hasHAUtilsClient = false;
-
   private static Method getHaNnRpcAddressesMethod;
 
   private static Method cloneDelegationTokenForLogicalUriMethod;
 
   static {
     try {
-      Class dfsUtilsClientClazz = Class.forName("org.apache.hadoop.hdfs.DFSUtilClient");
+      Class<?> dfsUtilsClientClazz;
+      try {
+        dfsUtilsClientClazz = Class.forName("org.apache.hadoop.hdfs.DFSUtilClient");
+      } catch (ClassNotFoundException e) {
+        dfsUtilsClientClazz = Class.forName("org.apache.hadoop.hdfs.DFSUtil");
+      }
       getHaNnRpcAddressesMethod = dfsUtilsClientClazz.getMethod("getHaNnRpcAddresses",
           Configuration.class);
-      hasDFSUtilClient = true;
-      Class haUtilClientClazz = Class.forName("org.apache.hadoop.hdfs.HAUtilClient");
+
+      Class<?> haUtilClientClazz;
+      try {
+        haUtilClientClazz = Class.forName("org.apache.hadoop.hdfs.HAUtilClient");
+      } catch (ClassNotFoundException e) {
+        haUtilClientClazz = Class.forName("org.apache.hadoop.hdfs.HAUtil");
+      }
       cloneDelegationTokenForLogicalUriMethod = haUtilClientClazz.getMethod(
           "cloneDelegationTokenForLogicalUri", UserGroupInformation.class,
           URI.class, Collection.class);
-      hasHAUtilsClient = true;
-    } catch (ClassNotFoundException e) {
-      LOG.debug("No such class", e);
-    } catch (NoSuchMethodException e) {
-      LOG.debug("No such method", e);
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      LOG.debug("No such class or method", e);
     }
   }
 
@@ -210,11 +212,7 @@ public class YarnUtils {
    */
   private static void cloneDelegationTokenForLogicalUri(UserGroupInformation ugi, URI haUri,
                                                         Collection<InetSocketAddress> nnAddrs) {
-    if (hasHAUtilsClient) {
-      invokeStaticMethodWithExceptionHandled(cloneDelegationTokenForLogicalUriMethod, ugi, haUri, nnAddrs);
-    } else {
-      HAUtil.cloneDelegationTokenForLogicalUri(ugi, haUri, nnAddrs);
-    }
+    invokeStaticMethodWithExceptionHandled(cloneDelegationTokenForLogicalUriMethod, ugi, haUri, nnAddrs);
   }
 
 
@@ -223,13 +221,10 @@ public class YarnUtils {
    * @param config
    * @return
    */
+  @SuppressWarnings("unchecked")
   private static Map<String, Map<String, InetSocketAddress>> getHaNnRpcAddresses(Configuration config) {
-    return hasDFSUtilClient ? getHaNnRpcAddressesUseDFSUtilClient(config) :
-        DFSUtil.getHaNnRpcAddresses(config);
-  }
-
-  private static Map<String, Map<String, InetSocketAddress>> getHaNnRpcAddressesUseDFSUtilClient(Configuration config) {
-    return (Map) invokeStaticMethodWithExceptionHandled(getHaNnRpcAddressesMethod, config);
+    return (Map<String, Map<String, InetSocketAddress>>) invokeStaticMethodWithExceptionHandled(
+      getHaNnRpcAddressesMethod, config);
   }
 
   private static Object invokeStaticMethodWithExceptionHandled(Method method, Object ... args) {

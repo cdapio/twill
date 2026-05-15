@@ -17,6 +17,7 @@
  */
 package org.apache.twill.internal.appmaster;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import org.apache.twill.common.Cancellable;
@@ -50,7 +51,7 @@ public final class RunnableProcessLauncher extends AbstractYarnProcessLauncher<Y
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
       .add("container", containerInfo)
       .toString();
   }

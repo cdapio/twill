@@ -17,6 +17,7 @@
  */
 package org.apache.twill.internal.state;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import org.apache.twill.api.Command;
 
@@ -59,7 +60,7 @@ final class SimpleMessage implements Message {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(Message.class)
+    return MoreObjects.toStringHelper(Message.class)
       .add("type", type)
       .add("scope", scope)
       .add("runnable", runnableName)

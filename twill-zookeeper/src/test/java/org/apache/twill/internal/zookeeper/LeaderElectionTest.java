@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Test for {@link LeaderElection}.
  */
-public class LeaderElectionTest {
+  public class LeaderElectionTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(LeaderElectionTest.class);
 
@@ -72,7 +72,7 @@ public class LeaderElectionTest {
       final AtomicInteger currentLeader = new AtomicInteger(-1);
       for (int i = 0; i < participantCount; i++) {
         final ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-        zkClient.startAndWait();
+        zkClient.startAsync().awaitRunning();
         stopLatch[i] = new CountDownLatch(1);
         zkClients.add(zkClient);
 
@@ -95,10 +95,10 @@ public class LeaderElectionTest {
                   followerSem.release();
                 }
               });
-              leaderElection.start();
+              leaderElection.startAsync();
 
               stopLatch[idx].await(10, TimeUnit.SECONDS);
-              leaderElection.stopAndWait();
+              leaderElection.stopAsync().awaitTerminated();
 
             } catch (Exception e) {
               LOG.error(e.getMessage(), e);
@@ -125,7 +125,7 @@ public class LeaderElectionTest {
       executor.awaitTermination(5L, TimeUnit.SECONDS);
 
       for (ZKClientService zkClient : zkClients) {
-        zkClient.stopAndWait();
+        zkClient.stopAsync().awaitTerminated();
       }
     }
   }
@@ -143,7 +143,7 @@ public class LeaderElectionTest {
     try {
       for (int i = 0; i < 2; i++) {
         ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-        zkClient.startAndWait();
+        zkClient.startAsync().awaitRunning();
 
         zkClients.add(zkClient);
 
@@ -163,7 +163,7 @@ public class LeaderElectionTest {
       }
 
       for (LeaderElection leaderElection : leaderElections) {
-        leaderElection.start();
+        leaderElection.startAsync();
       }
 
       leaderSem.tryAcquire(10, TimeUnit.SECONDS);
@@ -177,7 +177,7 @@ public class LeaderElectionTest {
                          zkClients.get(follower).getConnectString(), 20000);
 
       // Cancel the leader
-      leaderElections.get(leader).stopAndWait();
+      leaderElections.get(leader).stopAsync().awaitTerminated();
 
       // Now follower should still be able to become leader.
       leaderSem.tryAcquire(30, TimeUnit.SECONDS);
@@ -197,19 +197,19 @@ public class LeaderElectionTest {
           followerSem.release();
         }
       }));
-      leaderElections.get(follower).start();
+      leaderElections.get(follower).startAsync();
 
       // Cancel the follower first.
-      leaderElections.get(follower).stopAndWait();
+      leaderElections.get(follower).stopAsync().awaitTerminated();
 
       // Cancel the leader.
-      leaderElections.get(leader).stopAndWait();
+      leaderElections.get(leader).stopAsync().awaitTerminated();
 
       // Since the follower has been cancelled before leader, there should be no leader.
       Assert.assertFalse(leaderSem.tryAcquire(10, TimeUnit.SECONDS));
     } finally {
       for (ZKClientService zkClient : zkClients) {
-        zkClient.stopAndWait();
+        zkClient.stopAsync().awaitTerminated();
       }
     }
   }
@@ -218,10 +218,10 @@ public class LeaderElectionTest {
   public void testDisconnect() throws IOException, InterruptedException {
     File zkDataDir = tmpFolder.newFolder();
     InMemoryZKServer ownZKServer = InMemoryZKServer.builder().setDataDir(zkDataDir).build();
-    ownZKServer.startAndWait();
+    ownZKServer.startAsync().awaitRunning();
     try {
       ZKClientService zkClient = ZKClientService.Builder.of(ownZKServer.getConnectionStr()).build();
-      zkClient.startAndWait();
+      zkClient.startAsync().awaitRunning();
 
       try {
         final Semaphore leaderSem = new Semaphore(0);
@@ -238,44 +238,44 @@ public class LeaderElectionTest {
             followerSem.release();
           }
         });
-        leaderElection.start();
+        leaderElection.startAsync();
 
         leaderSem.tryAcquire(20, TimeUnit.SECONDS);
 
         int zkPort = ownZKServer.getLocalAddress().getPort();
 
         // Disconnect by shutting the server and restart it on the same port
-        ownZKServer.stopAndWait();
+        ownZKServer.stopAsync().awaitTerminated();
 
         // Right after disconnect, it should become follower
         followerSem.tryAcquire(20, TimeUnit.SECONDS);
 
         ownZKServer = InMemoryZKServer.builder().setDataDir(zkDataDir).setPort(zkPort).build();
-        ownZKServer.startAndWait();
+        ownZKServer.startAsync().awaitRunning();
 
         // Right after reconnect, it should be leader again.
         leaderSem.tryAcquire(20, TimeUnit.SECONDS);
 
         // Now disconnect it again, but then cancel it before reconnect, it shouldn't become leader
-        ownZKServer.stopAndWait();
+        ownZKServer.stopAsync().awaitTerminated();
 
         // Right after disconnect, it should become follower
         followerSem.tryAcquire(20, TimeUnit.SECONDS);
 
-        ListenableFuture<?> cancelFuture = leaderElection.stop();
+        leaderElection.stopAsync();
 
         ownZKServer = InMemoryZKServer.builder().setDataDir(zkDataDir).setPort(zkPort).build();
-        ownZKServer.startAndWait();
+        ownZKServer.startAsync().awaitRunning();
 
-        Futures.getUnchecked(cancelFuture);
+        leaderElection.awaitTerminated();
 
         // After reconnect, it should not be leader
         Assert.assertFalse(leaderSem.tryAcquire(10, TimeUnit.SECONDS));
       } finally {
-        zkClient.stopAndWait();
+        zkClient.stopAsync().awaitTerminated();
       }
     } finally {
-      ownZKServer.stopAndWait();
+      ownZKServer.stopAsync().awaitTerminated();
     }
   }
 
@@ -289,7 +289,7 @@ public class LeaderElectionTest {
     // This is to test the case when a follower tries to watch for leader node, but the leader is already gone
     for (int i = 0; i < 2; i++) {
       final ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      zkClient.startAndWait();
+      zkClient.startAsync().awaitRunning();
       executor.execute(new Runnable() {
         @Override
         public void run() {
@@ -308,13 +308,13 @@ public class LeaderElectionTest {
                   // no-op
                 }
               });
-              election.startAndWait();
+              election.startAsync().awaitRunning();
               Uninterruptibles.awaitUninterruptibly(leaderLatch);
-              election.stopAndWait();
+              election.stopAsync().awaitTerminated();
             }
             completeLatch.countDown();
           } finally {
-            zkClient.stopAndWait();
+            zkClient.stopAsync().awaitTerminated();
           }
         }
       });
@@ -330,11 +330,11 @@ public class LeaderElectionTest {
   @BeforeClass
   public static void init() throws IOException {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
   }
 
   @AfterClass
   public static void finish() {
-    zkServer.stopAndWait();
+    zkServer.stopAsync().awaitTerminated();
   }
 }

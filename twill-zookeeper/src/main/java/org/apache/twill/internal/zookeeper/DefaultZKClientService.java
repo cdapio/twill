@@ -27,7 +27,9 @@ import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
+import java.util.concurrent.TimeoutException;
 import org.apache.twill.common.Cancellable;
 import org.apache.twill.common.Threads;
 import org.apache.twill.zookeeper.ACLData;
@@ -189,14 +191,14 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
                 // handle the failure
                 updateFailureResult(t, result, path, ignoreNodeExists);
               }
-            });
+            }, MoreExecutors.directExecutor());
           }
 
           @Override
           public void onFailure(Throwable t) {
             result.setException(t);
           }
-        });
+        }, MoreExecutors.directExecutor());
       }
 
       /**
@@ -236,7 +238,7 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
         String parentPath = path.substring(0, path.lastIndexOf('/'));
         return (parentPath.isEmpty() && !"/".equals(path)) ? "/" : parentPath;
       }
-    });
+    }, MoreExecutors.directExecutor());
 
     return result;
   }
@@ -302,13 +304,8 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
   }
 
   @Override
-  public ListenableFuture<State> start() {
-    return serviceDelegate.start();
-  }
-
-  @Override
-  public State startAndWait() {
-    return serviceDelegate.startAndWait();
+  public Service startAsync() {
+    return serviceDelegate.startAsync();
   }
 
   @Override
@@ -322,13 +319,33 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
   }
 
   @Override
-  public ListenableFuture<State> stop() {
-    return serviceDelegate.stop();
+  public Service stopAsync() {
+    return serviceDelegate.stopAsync();
   }
 
   @Override
-  public State stopAndWait() {
-    return serviceDelegate.stopAndWait();
+  public void awaitRunning() {
+    serviceDelegate.awaitRunning();
+  }
+
+  @Override
+  public void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    serviceDelegate.awaitRunning(timeout, unit);
+  }
+
+  @Override
+  public void awaitTerminated() {
+    serviceDelegate.awaitTerminated();
+  }
+
+  @Override
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
+    serviceDelegate.awaitTerminated(timeout, unit);
+  }
+
+  @Override
+  public Throwable failureCause() {
+    return serviceDelegate.failureCause();
   }
 
   @Override
@@ -475,14 +492,14 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
           LOG.info("ZooKeeper session expired: {}", zkStr);
 
           // When connection expired, simply reconnect again
-          if (state != State.RUNNING) {
+          if (state != State.RUNNING && state != State.STARTING) {
             return;
           }
           eventExecutor.submit(new Runnable() {
             @Override
             public void run() {
-              // Only reconnect if the current state is running
-              if (state() != State.RUNNING) {
+              // Only reconnect if the current state is running or starting
+              if (state() != State.RUNNING && state() != State.STARTING) {
                 return;
               }
               try {

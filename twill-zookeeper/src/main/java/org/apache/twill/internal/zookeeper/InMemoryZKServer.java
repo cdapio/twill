@@ -18,11 +18,16 @@
 package org.apache.twill.internal.zookeeper;
 
 import com.google.common.base.Preconditions;
-import com.google.common.io.Files;
+
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.zookeeper.server.ServerCnxnFactory;
+import org.apache.zookeeper.server.ZKDatabase;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.slf4j.Logger;
@@ -51,9 +56,12 @@ public final class InMemoryZKServer implements Service {
       FileTxnSnapLog ftxn = new FileTxnSnapLog(dataDir, dataDir);
       zkServer.setTxnLogFactory(ftxn);
       zkServer.setTickTime(tickTime);
+      zkServer.setMinSessionTimeout(-1);
+      zkServer.setMaxSessionTimeout(-1);
+      zkServer.setZKDatabase(new ZKDatabase(ftxn));
 
       factory = ServerCnxnFactory.createFactory();
-      factory.configure(getAddress(port), -1);
+      factory.configure(getAddress(port), 1024);
       factory.startup(zkServer);
 
       LOG.info("In memory ZK started: " + getConnectionStr());
@@ -79,7 +87,12 @@ public final class InMemoryZKServer implements Service {
 
   private InMemoryZKServer(File dataDir, int tickTime, boolean autoClean, int port) {
     if (dataDir == null) {
-      dataDir = Files.createTempDir();
+      try {
+        // Updated to use standard Java NIO, as Guava's Files.createTempDir is deprecated
+        dataDir = Files.createTempDirectory("twill-zk").toFile();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to create temp directory", e);
+      }
       autoClean = true;
     } else {
       Preconditions.checkArgument(dataDir.isDirectory() || dataDir.mkdirs() || dataDir.isDirectory());
@@ -93,7 +106,7 @@ public final class InMemoryZKServer implements Service {
 
   public String getConnectionStr() {
     InetSocketAddress addr = factory.getLocalAddress();
-    return String.format("%s:%d", addr.getHostName(), addr.getPort());
+    return String.format("%s:%d", addr.getAddress().getHostAddress(), addr.getPort());
   }
 
   public InetSocketAddress getLocalAddress() {
@@ -123,13 +136,9 @@ public final class InMemoryZKServer implements Service {
   }
 
   @Override
-  public ListenableFuture<State> start() {
-    return delegateService.start();
-  }
-
-  @Override
-  public State startAndWait() {
-    return delegateService.startAndWait();
+  public Service startAsync() {
+    delegateService.startAsync();
+    return this;
   }
 
   @Override
@@ -143,13 +152,34 @@ public final class InMemoryZKServer implements Service {
   }
 
   @Override
-  public ListenableFuture<State> stop() {
-    return delegateService.stop();
+  public Service stopAsync() {
+    delegateService.stopAsync();
+    return this;
   }
 
   @Override
-  public State stopAndWait() {
-    return delegateService.stopAndWait();
+  public void awaitRunning() {
+    delegateService.awaitRunning();
+  }
+
+  @Override
+  public void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    delegateService.awaitRunning(timeout, unit);
+  }
+
+  @Override
+  public void awaitTerminated() {
+    delegateService.awaitTerminated();
+  }
+
+  @Override
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
+    delegateService.awaitTerminated(timeout, unit);
+  }
+
+  @Override
+  public Throwable failureCause() {
+    return delegateService.failureCause();
   }
 
   @Override
