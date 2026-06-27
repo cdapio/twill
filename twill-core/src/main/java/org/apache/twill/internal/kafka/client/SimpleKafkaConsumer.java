@@ -153,18 +153,29 @@ final class SimpleKafkaConsumer implements KafkaConsumer {
       return 0L;
     }
 
-    // Fire offset request
-    OffsetRequest request = new OffsetRequest(ImmutableMap.of(
-      new TopicAndPartition(topicPart.getTopic(), topicPart.getPartition()),
-      new PartitionOffsetRequestInfo(timestamp, 1)
-    ), kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
-
-    OffsetResponse response = consumer.getOffsetsBefore(request);
-
-    // Retrieve offsets from response
-    long[] offsets = response.hasError() ? null : response.offsets(topicPart.getTopic(), topicPart.getPartition());
+    long[] offsets = null;
+    short errorCode = 0;
+    for (int i = 0; i < 20; i++) {
+      OffsetRequest request = new OffsetRequest(ImmutableMap.of(
+        new TopicAndPartition(topicPart.getTopic(), topicPart.getPartition()),
+        new PartitionOffsetRequestInfo(timestamp, 1)
+      ), kafka.api.OffsetRequest.CurrentVersion(), consumer.clientId());
+      OffsetResponse response = consumer.getOffsetsBefore(request);
+      offsets = response.hasError() ? null : response.offsets(topicPart.getTopic(), topicPart.getPartition());
+      if (offsets != null && offsets.length > 0) {
+        break;
+      }
+      errorCode = response.errorCode(topicPart.getTopic(), topicPart.getPartition());
+      if (errorCode == ErrorMapping.UnknownTopicOrPartitionCode()) {
+        break;
+      }
+      try {
+        Thread.sleep(50);
+      } catch (Exception e) {
+        break;
+      }
+    }
     if (offsets == null || offsets.length <= 0) {
-      short errorCode = response.errorCode(topicPart.getTopic(), topicPart.getPartition());
 
       // If the topic partition doesn't exists, use offset 0 without logging error.
       if (errorCode != ErrorMapping.UnknownTopicOrPartitionCode()) {

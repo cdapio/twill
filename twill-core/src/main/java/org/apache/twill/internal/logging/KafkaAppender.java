@@ -173,6 +173,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   @Override
   public void stop() {
+    forceFlush();
     super.stop();
     scheduler.shutdownNow();
     Futures.getUnchecked(Services.chainStop(kafkaClient, zkClientService));
@@ -180,7 +181,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   public void forceFlush() {
     try {
-      scheduler.submit(flushTask).get(2, TimeUnit.SECONDS);
+      scheduler.submit(flushTask).get(10, TimeUnit.SECONDS);
     } catch (Exception e) {
       addError("Failed to force log flush in 2 seconds.", e);
     }
@@ -256,7 +257,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     }
 
     for (ByteBuffer buffer : logs) {
-      publisher.add(buffer, 0);
+      publisher.add(buffer.duplicate(), 0);
     }
 
     return publisher.send();
@@ -271,7 +272,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
       @Override
       public void run() {
         try {
-          publishLogs(2L, TimeUnit.SECONDS);
+          publishLogs(10L, TimeUnit.SECONDS);
         } catch (Exception e) {
           addError("Failed to push logs to Kafka. Log entries dropped.", e);
         }

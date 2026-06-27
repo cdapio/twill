@@ -55,6 +55,7 @@ import org.apache.twill.internal.TwillContainerController;
 import org.apache.twill.internal.TwillContainerLauncher;
 import org.apache.twill.internal.TwillRuntimeSpecification;
 import org.apache.twill.internal.container.TwillContainerMain;
+import org.apache.twill.internal.logging.Loggings;
 import org.apache.twill.internal.state.Message;
 import org.apache.twill.internal.state.SystemMessages;
 import org.apache.twill.internal.yarn.YarnContainerStatus;
@@ -518,6 +519,7 @@ final class RunningContainers {
       } else {
         LOG.info("Container {} exited normally with state {}", containerId, state);
       }
+      Loggings.forceFlush();
 
       lookup.clear();
       containerChange.signalAll();
