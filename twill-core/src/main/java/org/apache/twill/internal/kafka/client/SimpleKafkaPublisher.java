@@ -175,6 +175,7 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
         props.put("request.required.acks", Integer.toString(ack.getAck()));
         props.put("compression.codec", compression.getCodec());
         props.put("message.max.bytes", Integer.toString(MAX_MESSAGE_BYTES));
+        props.put("topic.metadata.refresh.interval.ms", "100");
 
         ProducerConfig config = new ProducerConfig(props);
         newProducer = new Producer<>(config);
@@ -226,7 +227,9 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
       // Call from cancel() through executor only.
       cancelChangeListener.cancel();
       Producer<Integer, ByteBuffer> kafkaProducer = producer.get();
-      kafkaProducer.close();
+      if (kafkaProducer != null) {
+        kafkaProducer.close();
+      }
       executor.shutdownNow();
     }
   }
