@@ -50,7 +50,7 @@ public final class ArgumentsCodec implements JsonSerializer<Arguments>, JsonDese
   public static void encode(Arguments arguments, Callable<? extends Writer> writerSupplier) throws IOException {
     try (Writer writer = writerSupplier.call()) {
       GSON.toJson(arguments, writer);
-    } catch (IOException e) {
+    } catch (IOException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
       throw new IOException(e);
@@ -61,7 +61,7 @@ public final class ArgumentsCodec implements JsonSerializer<Arguments>, JsonDese
   public static Arguments decode(Callable<? extends Reader> readerSupplier) throws IOException {
     try (Reader reader = readerSupplier.call()) {
       return GSON.fromJson(reader, Arguments.class);
-    } catch (IOException e) {
+    } catch (IOException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
       throw new IOException(e);

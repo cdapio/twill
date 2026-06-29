@@ -559,6 +559,7 @@ final class YarnTwillPreparer implements TwillPreparer {
 
         if (isLogCollectionEnabled()) {
           depClasses.add(OptionSpec.class);
+          depClasses.add(org.xerial.snappy.Snappy.class);
         }
 
         // Stuck in the yarnAppClient class to make bundler being able to pickup the right yarn-client version

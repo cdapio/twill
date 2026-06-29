@@ -23,8 +23,6 @@ import com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hdfs.DFSUtil;
-import org.apache.hadoop.hdfs.HAUtil;
 import org.apache.hadoop.io.DataInputByteBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
@@ -51,6 +49,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,6 +82,14 @@ public class YarnUtils {
 
   private static Method cloneDelegationTokenForLogicalUriMethod;
 
+  private static Method legacyGetHaNnRpcAddressesMethod;
+
+  private static Method legacyCloneDelegationTokenForLogicalUriMethod;
+
+  private static Method isHAEnabledMethod;
+
+  private static Method legacyIsHAEnabledMethod;
+
   static {
     try {
       Class dfsUtilsClientClazz = Class.forName("org.apache.hadoop.hdfs.DFSUtilClient");
@@ -93,11 +100,30 @@ public class YarnUtils {
       cloneDelegationTokenForLogicalUriMethod = haUtilClientClazz.getMethod(
           "cloneDelegationTokenForLogicalUri", UserGroupInformation.class,
           URI.class, Collection.class);
+      isHAEnabledMethod = haUtilClientClazz.getMethod("isHAEnabled", Configuration.class, String.class);
       hasHAUtilsClient = true;
     } catch (ClassNotFoundException e) {
       LOG.debug("No such class", e);
     } catch (NoSuchMethodException e) {
       LOG.debug("No such method", e);
+    }
+    if (!hasDFSUtilClient) {
+      try {
+        Class dfsUtilClazz = Class.forName("org.apache.hadoop.hdfs.DFSUtil");
+        legacyGetHaNnRpcAddressesMethod = dfsUtilClazz.getMethod("getHaNnRpcAddresses", Configuration.class);
+      } catch (Exception e) {
+        LOG.debug("No legacy getHaNnRpcAddresses method", e);
+      }
+    }
+    if (!hasHAUtilsClient) {
+      try {
+        Class haUtilClazz = Class.forName("org.apache.hadoop.hdfs.HAUtil");
+        legacyCloneDelegationTokenForLogicalUriMethod = haUtilClazz.getMethod(
+            "cloneDelegationTokenForLogicalUri", UserGroupInformation.class, URI.class, Collection.class);
+        legacyIsHAEnabledMethod = haUtilClazz.getMethod("isHAEnabled", Configuration.class, String.class);
+      } catch (Exception e) {
+        LOG.debug("No legacy cloneDelegationTokenForLogicalUri method", e);
+      }
     }
   }
 
@@ -190,7 +216,7 @@ public class YarnUtils {
     for (Map.Entry<String, Map<String, InetSocketAddress>> entry : getHaNnRpcAddresses(config).entrySet()) {
       String nsId = entry.getKey();
       Map<String, InetSocketAddress> addressesInNN = entry.getValue();
-      if (!HAUtil.isHAEnabled(config, nsId) || addressesInNN == null || addressesInNN.isEmpty()) {
+      if (!isHAEnabled(config, nsId) || addressesInNN == null || addressesInNN.isEmpty()) {
         continue;
       }
 
@@ -204,6 +230,15 @@ public class YarnUtils {
     }
   }
 
+  private static boolean isHAEnabled(Configuration config, String nsId) {
+    if (isHAEnabledMethod != null) {
+      return (Boolean) invokeStaticMethodWithExceptionHandled(isHAEnabledMethod, config, nsId);
+    } else if (legacyIsHAEnabledMethod != null) {
+      return (Boolean) invokeStaticMethodWithExceptionHandled(legacyIsHAEnabledMethod, config, nsId);
+    }
+    return false;
+  }
+
   /**
    * When hadoop_version > 2.8.0, class HAUtil has no method cloneDelegationTokenForLogicalUri(Configuration config).
    *
@@ -212,8 +247,8 @@ public class YarnUtils {
                                                         Collection<InetSocketAddress> nnAddrs) {
     if (hasHAUtilsClient) {
       invokeStaticMethodWithExceptionHandled(cloneDelegationTokenForLogicalUriMethod, ugi, haUri, nnAddrs);
-    } else {
-      HAUtil.cloneDelegationTokenForLogicalUri(ugi, haUri, nnAddrs);
+    } else if (legacyCloneDelegationTokenForLogicalUriMethod != null) {
+      invokeStaticMethodWithExceptionHandled(legacyCloneDelegationTokenForLogicalUriMethod, ugi, haUri, nnAddrs);
     }
   }
 
@@ -224,8 +259,12 @@ public class YarnUtils {
    * @return
    */
   private static Map<String, Map<String, InetSocketAddress>> getHaNnRpcAddresses(Configuration config) {
-    return hasDFSUtilClient ? getHaNnRpcAddressesUseDFSUtilClient(config) :
-        DFSUtil.getHaNnRpcAddresses(config);
+    if (hasDFSUtilClient) {
+      return getHaNnRpcAddressesUseDFSUtilClient(config);
+    } else if (legacyGetHaNnRpcAddressesMethod != null) {
+      return (Map) invokeStaticMethodWithExceptionHandled(legacyGetHaNnRpcAddressesMethod, config);
+    }
+    return Collections.emptyMap();
   }
 
   private static Map<String, Map<String, InetSocketAddress>> getHaNnRpcAddressesUseDFSUtilClient(Configuration config) {
