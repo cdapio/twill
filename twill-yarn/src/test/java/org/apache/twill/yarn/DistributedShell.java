@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -29,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  *
@@ -48,7 +48,8 @@ public final class DistributedShell extends AbstractTwillRunnable {
         Process process = new ProcessBuilder(ImmutableList.copyOf(Splitter.on(' ').split(cmd)))
                               .redirectErrorStream(true).start();
         try (
-          BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), Charsets.US_ASCII))
+          BufferedReader reader = new BufferedReader(
+            new InputStreamReader(process.getInputStream(), StandardCharsets.US_ASCII))
         ) {
           String line = reader.readLine();
           while (line != null) {

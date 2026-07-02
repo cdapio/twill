@@ -22,7 +22,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
-import java.util.Set;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
@@ -51,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -124,10 +124,10 @@ final class YarnTwillController extends AbstractTwillController implements Twill
       LOG.info("Application {} with id {} submitted", appName, appId);
 
       YarnApplicationState state = report.getYarnApplicationState();
-      Stopwatch stopWatch = new Stopwatch().start();
+      Stopwatch stopWatch = Stopwatch.createStarted();
 
       LOG.debug("Checking yarn application status for {} {}", appName, appId);
-      while (!hasRun(state) && stopWatch.elapsedTime(startTimeoutUnit) < startTimeout) {
+      while (!hasRun(state) && stopWatch.elapsed(startTimeoutUnit) < startTimeout) {
         report = processController.getReport();
         state = report.getYarnApplicationState();
         LOG.debug("Yarn application status for {} {}: {}", appName, appId, state);
@@ -168,13 +168,13 @@ final class YarnTwillController extends AbstractTwillController implements Twill
     FinalApplicationStatus finalStatus;
     // Poll application status from yarn
     try (ProcessController<YarnApplicationReport> processController = this.processController) {
-      Stopwatch stopWatch = new Stopwatch().start();
+      Stopwatch stopWatch = Stopwatch.createStarted();
 
       YarnApplicationReport report = processController.getReport();
       finalStatus = report.getFinalApplicationStatus();
       ApplicationId appId = report.getApplicationId();
       while (finalStatus == FinalApplicationStatus.UNDEFINED &&
-          stopWatch.elapsedTime(TimeUnit.MILLISECONDS) < timeoutMillis) {
+          stopWatch.elapsed(TimeUnit.MILLISECONDS) < timeoutMillis) {
         LOG.debug("Yarn application final status for {} {}: {}", appName, appId, finalStatus);
         TimeUnit.SECONDS.sleep(1);
         finalStatus = processController.getReport().getFinalApplicationStatus();

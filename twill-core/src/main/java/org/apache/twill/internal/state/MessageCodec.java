@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.state;
 
-import com.google.common.base.Charsets;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -31,6 +30,7 @@ import com.google.gson.JsonSerializer;
 import org.apache.twill.api.Command;
 
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -54,7 +54,7 @@ public final class MessageCodec {
     if (bytes == null) {
       return null;
     }
-    String content = new String(bytes, Charsets.UTF_8);
+    String content = new String(bytes, StandardCharsets.UTF_8);
     return GSON.fromJson(content, Message.class);
   }
 
@@ -64,7 +64,7 @@ public final class MessageCodec {
    * @return byte array representing the encoded message.
    */
   public static byte[] encode(Message message) {
-    return GSON.toJson(message, Message.class).getBytes(Charsets.UTF_8);
+    return GSON.toJson(message, Message.class).getBytes(StandardCharsets.UTF_8);
   }
 
   /**

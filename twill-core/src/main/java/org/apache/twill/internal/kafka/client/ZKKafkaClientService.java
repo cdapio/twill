@@ -98,7 +98,7 @@ public class ZKKafkaClientService extends AbstractIdleService implements KafkaCl
     scheduler.scheduleAtFixedRate(this, PUBLISHER_CLEANUP_SECONDS, PUBLISHER_CLEANUP_SECONDS, TimeUnit.SECONDS);
 
     // Start broker service to get auto-updated brokers information.
-    brokerService.startAndWait();
+    brokerService.startAsync().awaitRunning();
   }
 
   @Override
@@ -110,7 +110,7 @@ public class ZKKafkaClientService extends AbstractIdleService implements KafkaCl
     }
     consumer.stop();
 
-    brokerService.stopAndWait();
+    brokerService.stopAsync().awaitTerminated();
     LOG.info("KafkaClientService stopped");
   }
 }
