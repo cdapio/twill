@@ -17,7 +17,7 @@
  */
 package org.apache.twill.kafka.client;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 /**
  * Represents broker information. This class should be serializable with Gson.
@@ -57,7 +57,7 @@ public final class BrokerInfo {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(BrokerInfo.class)
+    return MoreObjects.toStringHelper(BrokerInfo.class)
                   .add("host", host)
                   .add("port", port)
                   .toString();

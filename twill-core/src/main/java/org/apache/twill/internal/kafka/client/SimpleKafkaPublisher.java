@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.kafka.client;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -162,7 +162,7 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
       String newBrokerList = brokerService.getBrokerList();
 
       // If there is no change, whether it is empty or not, just return
-      if (Objects.equal(brokerList, newBrokerList)) {
+      if (Objects.equals(brokerList, newBrokerList)) {
         return;
       }
 
