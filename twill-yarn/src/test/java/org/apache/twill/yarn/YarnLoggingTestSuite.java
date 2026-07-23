@@ -15,36 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.twill.internal;
+package org.apache.twill.yarn;
 
-import com.google.common.util.concurrent.Service;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
 /**
- * An adapter for implementing {@link Service.Listener} with all method default to no-op.
+ * Test suite for log handling, local files, and JVM options with mini yarn cluster (Cluster 2 of 3).
  */
-public abstract class ServiceListenerAdapter extends Service.Listener {
-  @Override
-  public void starting() {
-    // No-op
-  }
-
-  @Override
-  public void running() {
-    // No-op
-  }
-
-  @Override
-  public void stopping(Service.State from) {
-    // No-op
-  }
-
-  @Override
-  public void terminated(Service.State from) {
-    // No-op
-  }
-
-  @Override
-  public void failed(Service.State from, Throwable failure) {
-    // No-op
-  }
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+  FailureRestartTestRun.class,
+  InitializeFailTestRun.class,
+  JvmOptionsTestRun.class,
+  LocalFileTestRun.class,
+  LogHandlerTestRun.class,
+  LogLevelChangeTestRun.class,
+  LogLevelTestRun.class
+})
+public class YarnLoggingTestSuite {
 }

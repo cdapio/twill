@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.kafka.client;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -162,7 +162,7 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
       String newBrokerList = brokerService.getBrokerList();
 
       // If there is no change, whether it is empty or not, just return
-      if (Objects.equal(brokerList, newBrokerList)) {
+      if (Objects.equals(brokerList, newBrokerList)) {
         return;
       }
 
@@ -175,6 +175,7 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
         props.put("request.required.acks", Integer.toString(ack.getAck()));
         props.put("compression.codec", compression.getCodec());
         props.put("message.max.bytes", Integer.toString(MAX_MESSAGE_BYTES));
+        props.put("topic.metadata.refresh.interval.ms", "100");
 
         ProducerConfig config = new ProducerConfig(props);
         newProducer = new Producer<>(config);
@@ -226,7 +227,9 @@ final class SimpleKafkaPublisher implements KafkaPublisher {
       // Call from cancel() through executor only.
       cancelChangeListener.cancel();
       Producer<Integer, ByteBuffer> kafkaProducer = producer.get();
-      kafkaProducer.close();
+      if (kafkaProducer != null) {
+        kafkaProducer.close();
+      }
       executor.shutdownNow();
     }
   }

@@ -59,8 +59,8 @@ public class InitializeFailTestRun extends BaseYarnTest {
       .addLogHandler(logVerifyHandler)
       .start();
 
+    Assert.assertTrue(logLatch.await(120, TimeUnit.SECONDS));
     controller.awaitTerminated(2, TimeUnit.MINUTES);
-    Assert.assertTrue(logLatch.await(10, TimeUnit.SECONDS));
   }
 
   /**

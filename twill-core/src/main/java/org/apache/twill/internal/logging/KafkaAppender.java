@@ -20,7 +20,6 @@ package org.apache.twill.internal.logging;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterables;
@@ -47,6 +46,7 @@ import org.apache.twill.zookeeper.ZKClientServices;
 import org.apache.twill.zookeeper.ZKClients;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
@@ -154,13 +154,9 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
     kafkaClient = new ZKKafkaClientService(zkClientService);
     Futures.addCallback(Services.chainStart(zkClientService, kafkaClient),
-                        new FutureCallback<List<ListenableFuture<Service.State>>>() {
+                        new FutureCallback<Service.State>() {
       @Override
-      public void onSuccess(List<ListenableFuture<Service.State>> result) {
-        for (ListenableFuture<Service.State> future : result) {
-          Preconditions.checkState(Futures.getUnchecked(future) == Service.State.RUNNING,
-                                   "Service is not running.");
-        }
+      public void onSuccess(Service.State result) {
         addInfo("Kafka client started: " + zkConnectStr);
         scheduler.scheduleWithFixedDelay(flushTask, 0, flushPeriod, TimeUnit.MILLISECONDS);
       }
@@ -177,6 +173,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   @Override
   public void stop() {
+    forceFlush();
     super.stop();
     scheduler.shutdownNow();
     Futures.getUnchecked(Services.chainStop(kafkaClient, zkClientService));
@@ -184,7 +181,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   public void forceFlush() {
     try {
-      scheduler.submit(flushTask).get(2, TimeUnit.SECONDS);
+      scheduler.submit(flushTask).get(10, TimeUnit.SECONDS);
     } catch (Exception e) {
       addError("Failed to force log flush in 2 seconds.", e);
     }
@@ -209,7 +206,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     List<ByteBuffer> logs = Lists.newArrayListWithExpectedSize(bufferedSize.get());
 
     for (String json : Iterables.consumingIterable(buffer)) {
-      logs.add(Charsets.UTF_8.encode(json));
+      logs.add(StandardCharsets.UTF_8.encode(json));
     }
 
     long backOffTime = timeoutUnit.toNanos(timeout) / 10;
@@ -218,8 +215,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     }
 
     try {
-      Stopwatch stopwatch = new Stopwatch();
-      stopwatch.start();
+      Stopwatch stopwatch = Stopwatch.createStarted();
       long publishTimeout = timeout;
 
       do {
@@ -230,7 +226,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
         } catch (ExecutionException e) {
           addError("Failed to publish logs to Kafka.", e);
           TimeUnit.NANOSECONDS.sleep(backOffTime);
-          publishTimeout -= stopwatch.elapsedTime(timeoutUnit);
+          publishTimeout -= stopwatch.elapsed(timeoutUnit);
           stopwatch.reset();
           stopwatch.start();
         }
@@ -261,7 +257,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     }
 
     for (ByteBuffer buffer : logs) {
-      publisher.add(buffer, 0);
+      publisher.add(buffer.duplicate(), 0);
     }
 
     return publisher.send();
@@ -276,7 +272,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
       @Override
       public void run() {
         try {
-          publishLogs(2L, TimeUnit.SECONDS);
+          publishLogs(10L, TimeUnit.SECONDS);
         } catch (Exception e) {
           addError("Failed to push logs to Kafka. Log entries dropped.", e);
         }

@@ -79,17 +79,18 @@
         <surefire.redirectTestOutputToFile>true</surefire.redirectTestOutputToFile>
         <slf4j.version>1.7.30</slf4j.version>
         <logback.version>1.2.11</logback.version>
-        <guava.version>13.0.1</guava.version>
+        <guava.version>32.0.0-jre</guava.version>
         <gson.version>2.2.4</gson.version>
         <findbugs.jsr305.version>2.0.1</findbugs.jsr305.version>
         <netty.version>4.1.75.Final</netty.version>
-        <snappy-java.version>1.0.5</snappy-java.version>
+        <snappy-java.version>1.1.10.5</snappy-java.version>
         <jcl-over-slf4j.version>1.7.2</jcl-over-slf4j.version>
         <asm.version>7.1</asm.version>
         <kafka.version>0.10.2.2</kafka.version>
         <zkclient.version>0.10</zkclient.version>
         <zookeeper.version>3.4.5</zookeeper.version>
         <junit.version>4.11</junit.version>
+        <mockito.version>3.9.0</mockito.version>
         <jopt-simple.version>3.2</jopt-simple.version>
         <commons-compress.version>1.5</commons-compress.version>
         <force.mac.tests>false</force.mac.tests>
@@ -535,6 +536,38 @@
             <properties>
                 <hadoop.version>2.6.5</hadoop.version>
             </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>1.8</version>
+                        <executions>
+                            <execution>
+                                <id>add-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/main/hadoop21</source>
+                                        <source>src/main/hadoop22</source>
+                                        <source>src/main/hadoop23</source>
+                                        <source>src/main/hadoop26</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>hadoop-3.3</id>
+            <properties>
+                <hadoop.version>3.3.6</hadoop.version>
+            </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
@@ -897,6 +930,12 @@
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>

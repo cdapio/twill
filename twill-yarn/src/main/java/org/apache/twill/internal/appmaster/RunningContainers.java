@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.appmaster;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashBasedTable;
@@ -33,6 +32,7 @@ import com.google.common.collect.Table;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,6 +55,7 @@ import org.apache.twill.internal.TwillContainerController;
 import org.apache.twill.internal.TwillContainerLauncher;
 import org.apache.twill.internal.TwillRuntimeSpecification;
 import org.apache.twill.internal.container.TwillContainerMain;
+import org.apache.twill.internal.logging.Loggings;
 import org.apache.twill.internal.state.Message;
 import org.apache.twill.internal.state.SystemMessages;
 import org.apache.twill.internal.yarn.YarnContainerStatus;
@@ -67,6 +68,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -517,6 +519,7 @@ final class RunningContainers {
       } else {
         LOG.info("Container {} exited normally with state {}", containerId, state);
       }
+      Loggings.forceFlush();
 
       lookup.clear();
       containerChange.signalAll();
@@ -581,7 +584,7 @@ final class RunningContainers {
           }
         }
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   /**
@@ -735,10 +738,10 @@ final class RunningContainers {
     try {
       Gson gson = new GsonBuilder().serializeNulls().create();
       String jsonStr = gson.toJson(logLevels);
-      String fileName = Hashing.md5().hashString(jsonStr) + "." + Constants.Files.LOG_LEVELS;
+      String fileName = Hashing.md5().hashString(jsonStr, StandardCharsets.UTF_8) + "." + Constants.Files.LOG_LEVELS;
       Location location = applicationLocation.append(fileName);
       if (!location.exists()) {
-        try (Writer writer = new OutputStreamWriter(location.getOutputStream(), Charsets.UTF_8)) {
+        try (Writer writer = new OutputStreamWriter(location.getOutputStream(), StandardCharsets.UTF_8)) {
           writer.write(jsonStr);
         }
       }

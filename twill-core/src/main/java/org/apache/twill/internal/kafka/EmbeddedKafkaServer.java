@@ -146,6 +146,11 @@ public final class EmbeddedKafkaServer extends AbstractIdleService {
       prop.setProperty("port", Integer.toString(randomPort));
     }
 
+    if (prop.getProperty("host.name") == null) {
+      prop.setProperty("host.name", "127.0.0.1");
+    }
+    prop.setProperty("log.cleaner.enable", "false");
+
     return new KafkaConfig(prop);
   }
 }

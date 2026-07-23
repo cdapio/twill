@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.kafka.client;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -51,6 +50,7 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -128,14 +128,20 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
   public BrokerInfo getLeader(String topic, int partition) {
     Preconditions.checkState(isRunning(), "BrokerService is not running.");
     PartitionInfo partitionInfo = partitionInfos.getUnchecked(new KeyPathTopicPartition(topic, partition)).get();
-    return partitionInfo == null ? null : brokerInfos.getUnchecked(new BrokerId(partitionInfo.getLeader())).get();
+    if (partitionInfo != null) {
+      BrokerInfo info = brokerInfos.getUnchecked(new BrokerId(partitionInfo.getLeader())).get();
+      if (info != null) {
+        return info;
+      }
+    }
+    return Iterables.getFirst(getBrokers(), null);
   }
 
   @Override
   public synchronized Iterable<BrokerInfo> getBrokers() {
     Preconditions.checkState(isRunning(), "BrokerService is not running.");
 
-    if (brokerList != null) {
+    if (brokerList != null && !Iterables.isEmpty(brokerList.get())) {
       return brokerList.get();
     }
 
@@ -203,8 +209,25 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
     brokerList = this.<Iterable<BrokerInfo>>createSupplier(brokers);
     try {
       readyFuture.get();
+      if (Iterables.isEmpty(brokerList.get())) {
+        long startTime = System.currentTimeMillis();
+        while (isRunning() && !Thread.currentThread().isInterrupted() &&
+               Iterables.isEmpty(brokerList.get()) &&
+               (System.currentTimeMillis() - startTime < 5000)) {
+          try {
+            Thread.sleep(50);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+      }
     } catch (Exception e) {
-      throw Throwables.propagate(e);
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      } else {
+        throw Throwables.propagate(e);
+      }
     }
     return brokerList.get();
   }
@@ -307,7 +330,7 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
     if (data == null) {
       return null;
     }
-    return GSON.fromJson(new String(data, Charsets.UTF_8), type);
+    return GSON.fromJson(new String(data, StandardCharsets.UTF_8), type);
   }
 
   /**

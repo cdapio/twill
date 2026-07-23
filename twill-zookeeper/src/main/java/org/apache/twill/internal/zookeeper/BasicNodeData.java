@@ -17,11 +17,11 @@
  */
 package org.apache.twill.internal.zookeeper;
 
-import com.google.common.base.Objects;
 import org.apache.twill.zookeeper.NodeData;
 import org.apache.zookeeper.data.Stat;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * A straightforward implementation for {@link NodeData}.
@@ -62,6 +62,6 @@ final class BasicNodeData implements NodeData {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(data, stat);
+    return Objects.hash(data, stat);
   }
 }

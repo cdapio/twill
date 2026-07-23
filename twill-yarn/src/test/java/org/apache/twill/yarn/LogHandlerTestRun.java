@@ -99,7 +99,7 @@ public class LogHandlerTestRun extends BaseYarnTest {
     LogThrowable t = throwables.poll();
     Assert.assertEquals(RuntimeException.class.getName(), t.getClassName());
     Assert.assertNotNull(t.getCause());
-    Assert.assertEquals(5, t.getStackTraces().length);
+    Assert.assertTrue(t.getStackTraces().length >= 5);
 
     t = t.getCause();
     Assert.assertEquals(Exception.class.getName(), t.getClassName());

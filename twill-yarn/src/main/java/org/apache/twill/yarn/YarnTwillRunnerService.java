@@ -180,12 +180,18 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
 
   @Override
   public void start() {
-    serviceDelegate.startAndWait();
+    if (!serviceDelegate.isRunning()) {
+      serviceDelegate.startAsync();
+    }
+    serviceDelegate.awaitRunning();
   }
 
   @Override
   public void stop() {
-    serviceDelegate.stopAndWait();
+    if (serviceDelegate.state() != Service.State.TERMINATED && serviceDelegate.state() != Service.State.FAILED) {
+      serviceDelegate.stopAsync();
+    }
+    serviceDelegate.awaitTerminated();
   }
 
   /**
@@ -347,7 +353,7 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
   }
 
   private void startUp() throws Exception {
-    zkClientService.startAndWait();
+    zkClientService.startAsync().awaitRunning();
 
     // Create the root node, so that the namespace root would get created if it is missing
     // If the exception is caused by node exists, then it's ok. Otherwise propagate the exception.
@@ -431,7 +437,7 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
 
         return !activeLocations.contains(location);
       });
-    cleaner.startAndWait();
+    cleaner.startAsync().awaitRunning();
     return cleaner;
   }
 
@@ -442,14 +448,14 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
     // daemon threads.
     synchronized (this) {
       if (locationCacheCleaner != null) {
-        locationCacheCleaner.stopAndWait();
+        locationCacheCleaner.stopAsync().awaitTerminated();
       }
       if (secureStoreScheduler != null) {
         secureStoreScheduler.shutdownNow();
       }
     }
     watchCancellable.cancel();
-    zkClientService.stopAndWait();
+    zkClientService.stopAsync().awaitTerminated();
   }
 
   private Cancellable watchLiveApps() {
@@ -600,7 +606,7 @@ public final class YarnTwillRunnerService implements TwillRunnerService {
             YarnTwillController controller = listenController(
               new YarnTwillController(appName, runId, zkClient, amLiveNodeData, yarnAppClient));
             controllers.put(appName, runId, controller);
-            controller.start();
+            controller.startAsync();
           }
         }
       }
