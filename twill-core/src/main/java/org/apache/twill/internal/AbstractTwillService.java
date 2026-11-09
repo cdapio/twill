@@ -330,19 +330,22 @@ public abstract class AbstractTwillService extends AbstractExecutionThreadServic
     terminationTimeoutMillis.compareAndSet(-1L, timeoutMillis);
 
     // Stop this service.
-    addListener(new ServiceListenerAdapter() {
+    State currentState = state();
+    if (currentState != State.TERMINATED && currentState != State.FAILED) {
+      stopAsync();
+    }
+    Futures.addCallback(Services.getCompletionFuture(this), new FutureCallback<State>() {
       @Override
-      public void terminated(State from) {
+      public void onSuccess(State result) {
         messageRemover.run();
       }
 
       @Override
-      public void failed(State from, Throwable failure) {
-        LOG.error("Stop service failed upon STOP command", failure);
+      public void onFailure(Throwable t) {
+        LOG.error("Stop service failed upon STOP command", t);
         messageRemover.run();
       }
     }, Threads.SAME_THREAD_EXECUTOR);
-    stopAsync();
     return true;
   }
 

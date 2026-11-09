@@ -173,7 +173,6 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   @Override
   public void stop() {
-    forceFlush();
     super.stop();
     scheduler.shutdownNow();
     Futures.getUnchecked(Services.chainStop(kafkaClient, zkClientService));
@@ -183,7 +182,7 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
     try {
       scheduler.submit(flushTask).get(10, TimeUnit.SECONDS);
     } catch (Exception e) {
-      addError("Failed to force log flush in 2 seconds.", e);
+      addError("Failed to force log flush in 10 seconds.", e);
     }
   }
 

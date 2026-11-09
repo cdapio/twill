@@ -128,20 +128,14 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
   public BrokerInfo getLeader(String topic, int partition) {
     Preconditions.checkState(isRunning(), "BrokerService is not running.");
     PartitionInfo partitionInfo = partitionInfos.getUnchecked(new KeyPathTopicPartition(topic, partition)).get();
-    if (partitionInfo != null) {
-      BrokerInfo info = brokerInfos.getUnchecked(new BrokerId(partitionInfo.getLeader())).get();
-      if (info != null) {
-        return info;
-      }
-    }
-    return Iterables.getFirst(getBrokers(), null);
+    return partitionInfo == null ? null : brokerInfos.getUnchecked(new BrokerId(partitionInfo.getLeader())).get();
   }
 
   @Override
   public synchronized Iterable<BrokerInfo> getBrokers() {
     Preconditions.checkState(isRunning(), "BrokerService is not running.");
 
-    if (brokerList != null && !Iterables.isEmpty(brokerList.get())) {
+    if (brokerList != null) {
       return brokerList.get();
     }
 
@@ -209,25 +203,8 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
     brokerList = this.<Iterable<BrokerInfo>>createSupplier(brokers);
     try {
       readyFuture.get();
-      if (Iterables.isEmpty(brokerList.get())) {
-        long startTime = System.currentTimeMillis();
-        while (isRunning() && !Thread.currentThread().isInterrupted() &&
-               Iterables.isEmpty(brokerList.get()) &&
-               (System.currentTimeMillis() - startTime < 5000)) {
-          try {
-            Thread.sleep(50);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            break;
-          }
-        }
-      }
     } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      } else {
-        throw Throwables.propagate(e);
-      }
+      throw Throwables.propagate(e);
     }
     return brokerList.get();
   }
