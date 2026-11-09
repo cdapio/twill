@@ -21,15 +21,19 @@ import com.google.common.base.Function;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.Service.Listener;
+import com.google.common.util.concurrent.Service.State;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.twill.api.RunId;
 import org.apache.twill.api.ServiceController;
 import org.apache.twill.common.Threads;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +46,7 @@ import javax.annotation.Nullable;
  * An abstract base class for implementing {@link ServiceController} that deal with Service state transition and
  * listener callback.
  */
-public abstract class AbstractExecutionServiceController implements ServiceController, Service {
+public abstract class AbstractExecutionServiceController implements ServiceController {
 
   private final RunId runId;
   private final ListenerExecutors listenerExecutors;
@@ -133,50 +137,43 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     listenerExecutors.addListener(new ListenerExecutor(listener, executor));
   }
 
-  @Override
   public final Service startAsync() {
     serviceDelegate.addListener(listenerExecutors, Threads.SAME_THREAD_EXECUTOR);
     serviceDelegate.startAsync();
-    return this;
+    return serviceDelegate;
   }
 
-  @Override
   public final void awaitRunning() {
     serviceDelegate.awaitRunning();
   }
 
-  @Override
   public final void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
     serviceDelegate.awaitRunning(timeout, unit);
   }
 
-  @Override
   public final boolean isRunning() {
     return serviceDelegate.isRunning();
   }
 
-  @Override
   public final State state() {
     return serviceDelegate.state();
   }
 
-  @Override
   public final Service stopAsync() {
     serviceDelegate.stopAsync();
-    return this;
+    return serviceDelegate;
   }
 
   @Override
-  public final void awaitTerminated() {
-    serviceDelegate.awaitTerminated();
+  public final void awaitTerminated() throws ExecutionException {
+    Uninterruptibles.getUninterruptibly(terminationFuture);
   }
 
   @Override
-  public final void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
-    serviceDelegate.awaitTerminated(timeout, unit);
+  public final void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
+    Uninterruptibles.getUninterruptibly(terminationFuture, timeout, unit);
   }
 
-  @Override
   public final Throwable failureCause() {
     return serviceDelegate.failureCause();
   }

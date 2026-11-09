@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.twill.common.Threads;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -84,7 +85,9 @@ public final class Services {
     if (state == Service.State.TERMINATED) {
       return Futures.immediateFuture(state);
     } else if (state == Service.State.FAILED) {
-      return Futures.immediateFailedFuture(new IllegalStateException("Service failed with unknown exception."));
+      Throwable failure = service.failureCause();
+      return Futures.immediateFailedFuture(
+        failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
     }
 
     return resultFuture;
@@ -108,24 +111,27 @@ public final class Services {
   private static void startOrStop(final boolean doStart, Service service, final Service[] moreServices,
                                   final AtomicInteger idx,
                                   final SettableFuture<Service.State> resultFuture) {
+    final AtomicBoolean handled = new AtomicBoolean(false);
     service.addListener(new ServiceListenerAdapter() {
       @Override
       public void running() {
-        if (doStart) {
+        if (doStart && handled.compareAndSet(false, true)) {
           onServiceOperationComplete(Service.State.RUNNING);
         }
       }
 
       @Override
       public void terminated(Service.State from) {
-        if (!doStart) {
+        if (!doStart && handled.compareAndSet(false, true)) {
           onServiceOperationComplete(Service.State.TERMINATED);
         }
       }
 
       @Override
       public void failed(Service.State from, Throwable failure) {
-        resultFuture.setException(failure);
+        if (handled.compareAndSet(false, true)) {
+          resultFuture.setException(failure);
+        }
       }
 
       private void onServiceOperationComplete(Service.State state) {
@@ -138,10 +144,35 @@ public final class Services {
       }
     }, Threads.SAME_THREAD_EXECUTOR);
 
-    if (doStart) {
-      service.startAsync();
-    } else {
-      service.stopAsync();
+    try {
+      if (doStart) {
+        service.startAsync();
+      } else {
+        service.stopAsync();
+      }
+    } catch (Throwable t) {
+      if (handled.compareAndSet(false, true)) {
+        resultFuture.setException(t);
+      }
+      return;
+    }
+
+    Service.State state = service.state();
+    if (!doStart && state == Service.State.TERMINATED) {
+      if (handled.compareAndSet(false, true)) {
+        int nextIdx = idx.getAndIncrement();
+        if (nextIdx >= moreServices.length) {
+          resultFuture.set(Service.State.TERMINATED);
+        } else {
+          startOrStop(doStart, moreServices[nextIdx], moreServices, idx, resultFuture);
+        }
+      }
+    } else if (state == Service.State.FAILED) {
+      if (handled.compareAndSet(false, true)) {
+        Throwable failure = service.failureCause();
+        resultFuture.setException(
+          failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
+      }
     }
   }
 

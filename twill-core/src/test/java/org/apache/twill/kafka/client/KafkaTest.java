@@ -332,6 +332,8 @@ public class KafkaTest {
     Preconditions.checkState(port > 0, "Failed to get random port.");
 
     Properties prop = new Properties();
+    prop.setProperty("host.name", "127.0.0.1");
+    prop.setProperty("log.cleaner.enable", "false");
     prop.setProperty("log.dir", logDir.getAbsolutePath());
     prop.setProperty("port", Integer.toString(port));
     prop.setProperty("broker.id", "1");

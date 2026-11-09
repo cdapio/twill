@@ -33,5 +33,5 @@ import org.junit.runners.Suite;
   LogLevelChangeTestRun.class,
   LogLevelTestRun.class
 })
-public class YarnLoggingTestSuite {
+public class YarnLoggingTestSuite extends BaseYarnTest {
 }

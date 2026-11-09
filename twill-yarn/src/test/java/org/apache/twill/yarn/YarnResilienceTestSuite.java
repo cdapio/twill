@@ -34,5 +34,5 @@ import org.junit.runners.Suite;
   RestartRunnableTestRun.class,
   MaxRetriesTestRun.class
 })
-public class YarnResilienceTestSuite {
+public class YarnResilienceTestSuite extends BaseYarnTest {
 }

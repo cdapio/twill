@@ -171,7 +171,8 @@ final class SimpleKafkaConsumer implements KafkaConsumer {
       }
       try {
         Thread.sleep(50);
-      } catch (Exception e) {
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         break;
       }
     }

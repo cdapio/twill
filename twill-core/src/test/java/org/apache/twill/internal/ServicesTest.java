@@ -46,6 +46,15 @@ public class ServicesTest {
 
     Services.chainStart(s1, s2, s3).get();
     Services.chainStop(s3, s2, s1).get();
+    // Stopping already terminated services should complete immediately without hanging
+    Services.chainStop(s3, s2, s1).get();
+    // Starting an already terminated service should complete the returned future exceptionally
+    try {
+      Services.chainStart(s1, s2).get();
+      Assert.fail("Expected ExecutionException when starting an already terminated service");
+    } catch (ExecutionException e) {
+      Assert.assertTrue(e.getCause() instanceof IllegalStateException);
+    }
   }
 
   @Test

@@ -33,5 +33,5 @@ import org.junit.runners.Suite;
   EnvironmentTestRun.class,
   EventHandlerTestRun.class
 })
-public class YarnCoreTestSuite {
+public class YarnCoreTestSuite extends BaseYarnTest {
 }
