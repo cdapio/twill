@@ -17,14 +17,13 @@
  */
 package org.apache.twill.ext;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -35,6 +34,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
@@ -85,7 +85,7 @@ public class BundledJarRunner {
     Preconditions.checkNotNull(libFolder);
 
     File inputJarFile = this.jarFile;
-    File outputJarDir = Files.createTempDir();
+    File outputJarDir = Files.createTempDirectory("bundled-jar").toFile();
 
     LOG.debug("Unpacking jar to " + outputJarDir.getAbsolutePath());
     JarFile jarFile = new JarFile(inputJarFile);
@@ -220,15 +220,15 @@ public class BundledJarRunner {
       }
 
       Arguments arguments = (Arguments) o;
-      return Objects.equal(jarFileName, arguments.jarFileName)
-        && Objects.equal(libFolder, arguments.libFolder)
+      return Objects.equals(jarFileName, arguments.jarFileName)
+        && Objects.equals(libFolder, arguments.libFolder)
         && Arrays.deepEquals(mainArgs, arguments.mainArgs)
-        && Objects.equal(mainClassName, arguments.mainClassName);
+        && Objects.equals(mainClassName, arguments.mainClassName);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(jarFileName, mainClassName, mainArgs, libFolder);
+      return Objects.hash(jarFileName, mainClassName, mainArgs, libFolder);
     }
 
     public String[] toArray() {

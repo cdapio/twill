@@ -135,7 +135,7 @@ public final class NamespaceZKClient extends ForwardingZKClient {
       public void onFailure(Throwable t) {
         to.setException(t);
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
     return to;
   }
 

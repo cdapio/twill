@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -29,6 +28,7 @@ import org.apache.twill.zookeeper.NodeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 
 /**
@@ -56,7 +56,7 @@ final class ApplicationMasterLiveNodeDecoder {
       return null;
     }
 
-    JsonElement json = GSON.fromJson(new String(data, Charsets.UTF_8), JsonElement.class);
+    JsonElement json = GSON.fromJson(new String(data, StandardCharsets.UTF_8), JsonElement.class);
     if (!json.isJsonObject()) {
       LOG.warn("Unable to decode live data node.");
       return null;

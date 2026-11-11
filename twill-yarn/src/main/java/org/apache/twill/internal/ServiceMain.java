@@ -25,7 +25,6 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.spi.FilterReply;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import org.apache.hadoop.conf.Configuration;
@@ -81,7 +80,7 @@ public abstract class ServiceMain {
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
-        mainService.stopAndWait();
+        mainService.stopAsync().awaitTerminated();
       }
     });
 
@@ -93,7 +92,7 @@ public abstract class ServiceMain {
       try {
         // Starts the service
         LOG.info("Starting service {}.", mainService);
-        Futures.allAsList(Services.chainStart(requiredServices, mainService).get()).get();
+        Services.chainStart(requiredServices, mainService).get();
         LOG.info("Service {} started.", mainService);
       } catch (Throwable t) {
         LOG.error("Exception when starting service {}.", mainService, t);
@@ -110,7 +109,7 @@ public abstract class ServiceMain {
         throw Throwables.propagate(t);
       }
     } finally {
-      requiredServices.stopAndWait();
+      requiredServices.stopAsync().awaitTerminated();
 
       ILoggerFactory loggerFactory = LoggerFactory.getILoggerFactory();
       if (loggerFactory instanceof LoggerContext) {

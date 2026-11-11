@@ -17,8 +17,9 @@
  */
 package org.apache.twill.internal.appmaster;
 
-import com.google.common.base.Objects;
 import org.apache.hadoop.yarn.api.records.Resource;
+
+import java.util.Objects;
 
 /**
  * This class defines how the containers should be allocated.
@@ -93,9 +94,9 @@ public class AllocationSpecification {
     }
     AllocationSpecification other = (AllocationSpecification) obj;
     return (instanceId == other.instanceId) &&
-      Objects.equal(resource, other.resource) &&
-      Objects.equal(type, other.type) &&
-      Objects.equal(runnableName, other.runnableName);
+      Objects.equals(resource, other.resource) &&
+      Objects.equals(type, other.type) &&
+      Objects.equals(runnableName, other.runnableName);
   }
 
   @Override

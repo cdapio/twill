@@ -22,7 +22,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,9 +52,9 @@ public final class CompositeService extends AbstractIdleService {
 
     for (Service service : services) {
       try {
-        service.startAndWait();
-      } catch (UncheckedExecutionException e) {
-        failureCause = e.getCause();
+        service.startAsync().awaitRunning();
+      } catch (IllegalStateException e) {
+        failureCause = e.getCause() != null ? e.getCause() : e;
         break;
       }
     }
@@ -88,12 +87,12 @@ public final class CompositeService extends AbstractIdleService {
       Service service = itor.next();
       try {
         if (service.isRunning() || service.state() == State.STARTING) {
-          service.stopAndWait();
+          service.stopAsync().awaitTerminated();
         }
-      } catch (UncheckedExecutionException e) {
+      } catch (IllegalStateException e) {
         // Just catch as we want all services stopped
         if (failureCause == null) {
-          failureCause = e.getCause();
+          failureCause = e.getCause() != null ? e.getCause() : e;
         } else {
           // Log for sub-sequence service shutdown error, as only the first failure cause will be thrown.
           LOG.warn("Failed to stop service {}", service, e);

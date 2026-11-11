@@ -21,14 +21,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.collect.DiscreteDomains;
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
-import com.google.common.collect.Ranges;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
@@ -636,7 +637,7 @@ public final class ApplicationMasterService extends AbstractYarnTwillService imp
         if (action.getTimeout() < 0) {
           // Abort application
           stopStatus = StopStatus.ABORTED;
-          stop();
+          stopAsync();
         } else {
           return nextTimeoutCheck + action.getTimeout();
         }
@@ -1023,7 +1024,7 @@ public final class ApplicationMasterService extends AbstractYarnTwillService imp
         int runningCount = runningContainers.count(runnableName);
         Set<Integer> instancesToRemove = instanceIds == null ? null : ImmutableSet.copyOf(instanceIds);
         if (instancesToRemove == null) {
-          instancesToRemove = Ranges.closedOpen(0, runningCount).asSet(DiscreteDomains.integers());
+          instancesToRemove = ContiguousSet.create(Range.closedOpen(0, runningCount), DiscreteDomain.integers());
         }
 
         LOG.info("Restarting instances {} for runnable {}", instancesToRemove, runnableName);

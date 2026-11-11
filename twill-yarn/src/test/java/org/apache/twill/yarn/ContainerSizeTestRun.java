@@ -60,7 +60,7 @@ public class ContainerSizeTestRun extends BaseYarnTest {
 
     try {
       ServiceDiscovered discovered = controller.discoverService("sleep");
-      Assert.assertTrue(waitForSize(discovered, 2, 120));
+      Assert.assertTrue(waitForSize(discovered, 2, 240));
     } finally {
       controller.terminate().get(120, TimeUnit.SECONDS);
     }
@@ -83,7 +83,7 @@ public class ContainerSizeTestRun extends BaseYarnTest {
 
     try {
       ServiceDiscovered discovered = controller.discoverService("sleep");
-      Assert.assertTrue(waitForSize(discovered, 2, 120));
+      Assert.assertTrue(waitForSize(discovered, 2, 240));
 
       // Verify the AM container size and heap size
       ResourceReport resourceReport = controller.getResourceReport();

@@ -19,6 +19,7 @@ package org.apache.twill.internal.zookeeper;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.twill.internal.zookeeper.RewatchOnExpireWatcher.ActionType;
 import org.apache.twill.zookeeper.ForwardingZKClient;
 import org.apache.twill.zookeeper.NodeChildren;
@@ -55,7 +56,7 @@ public final class RewatchOnExpireZKClient extends ForwardingZKClient {
       public void onFailure(Throwable t) {
         // No-op
       }
-    });
+    }, MoreExecutors.directExecutor());
     return result;
   }
 
@@ -76,7 +77,7 @@ public final class RewatchOnExpireZKClient extends ForwardingZKClient {
       public void onFailure(Throwable t) {
         // No-op
       }
-    });
+    }, MoreExecutors.directExecutor());
     return result;
   }
 
@@ -97,7 +98,7 @@ public final class RewatchOnExpireZKClient extends ForwardingZKClient {
       public void onFailure(Throwable t) {
         // No-op
       }
-    });
+    }, MoreExecutors.directExecutor());
     return result;
 
   }

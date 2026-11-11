@@ -28,7 +28,6 @@ import org.apache.twill.api.TwillRunResources;
 import org.apache.twill.api.TwillSpecification;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.api.logging.PrinterLogHandler;
-
 import org.apache.twill.common.Threads;
 import org.junit.Assert;
 import org.junit.Test;
@@ -161,8 +160,7 @@ public class LogLevelTestRun extends BaseYarnTest {
   private boolean waitForLogLevel(TwillController controller, String runnable, long timeout,
                                   TimeUnit timeoutUnit, @Nullable LogEntry.Level expected) throws InterruptedException {
 
-    Stopwatch stopwatch = new Stopwatch();
-    stopwatch.start();
+    Stopwatch stopwatch = Stopwatch.createStarted();
     do {
       ResourceReport report = controller.getResourceReport();
       if (report == null || report.getRunnableResources(runnable) == null) {
@@ -175,7 +173,7 @@ public class LogLevelTestRun extends BaseYarnTest {
         }
       }
       TimeUnit.MILLISECONDS.sleep(100);
-    } while (stopwatch.elapsedTime(timeoutUnit) < timeout);
+    } while (stopwatch.elapsed(timeoutUnit) < timeout);
 
     return false;
   }

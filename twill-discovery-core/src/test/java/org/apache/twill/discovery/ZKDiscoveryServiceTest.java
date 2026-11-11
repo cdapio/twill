@@ -47,20 +47,20 @@ public class ZKDiscoveryServiceTest extends DiscoveryServiceTestBase {
   @BeforeClass
   public static void beforeClass() {
     zkServer = InMemoryZKServer.builder().setTickTime(100000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     zkClient = ZKClientServices.delegate(
       ZKClients.retryOnFailure(
         ZKClients.reWatchOnExpire(
           ZKClientService.Builder.of(zkServer.getConnectionStr()).build()),
         RetryStrategies.fixDelay(1, TimeUnit.SECONDS)));
-    zkClient.startAndWait();
+    zkClient.startAsync().awaitRunning();
   }
 
   @AfterClass
   public static void afterClass() {
-    zkClient.stopAndWait();
-    zkServer.stopAndWait();
+    zkClient.stopAsync().awaitTerminated();
+    zkServer.stopAsync().awaitTerminated();
   }
 
   @Test (timeout = 30000)
@@ -87,7 +87,7 @@ public class ZKDiscoveryServiceTest extends DiscoveryServiceTestBase {
           ZKClients.reWatchOnExpire(
             ZKClientService.Builder.of(zkServer.getConnectionStr()).build()),
           RetryStrategies.fixDelay(1, TimeUnit.SECONDS)));
-      zkClient2.startAndWait();
+      zkClient2.startAsync().awaitRunning();
 
       try (ZKDiscoveryService discoveryService2 = new ZKDiscoveryService(zkClient2)) {
         cancellable2 = register(discoveryService2, "test_multi_client", "localhost", 54321);
@@ -98,7 +98,7 @@ public class ZKDiscoveryServiceTest extends DiscoveryServiceTestBase {
           public void run() {
             try {
               TimeUnit.SECONDS.sleep(2);
-              zkClient2.stopAndWait();
+              zkClient2.stopAsync().awaitTerminated();
             } catch (InterruptedException e) {
               LOG.error(e.getMessage(), e);
             }
@@ -109,7 +109,7 @@ public class ZKDiscoveryServiceTest extends DiscoveryServiceTestBase {
         cancellable = register(discoveryService, "test_multi_client", "localhost", 54321);
         cancellable.cancel();
       } finally {
-        zkClient2.stopAndWait();
+        zkClient2.stopAsync().awaitTerminated();
       }
     } finally {
       closeServices(entry);

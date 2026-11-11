@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -27,6 +26,8 @@ import com.google.common.collect.Sets;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.Service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.twill.api.Command;
@@ -54,6 +55,7 @@ import org.apache.twill.zookeeper.ZKClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
@@ -102,10 +104,15 @@ public abstract class AbstractTwillController extends AbstractZKServiceControlle
   @Override
   protected synchronized void doStartUp() {
     if (kafkaClient != null && !logHandlers.isEmpty()) {
-      kafkaClient.startAndWait();
-      logCancellable = kafkaClient.getConsumer().prepare()
-                                  .addFromBeginning(Constants.LOG_TOPIC, 0)
-                                  .consume(new LogMessageCallback(logHandlers));
+      if (kafkaClient.state() == Service.State.NEW) {
+        kafkaClient.startAsync();
+      }
+      kafkaClient.awaitRunning();
+      if (logCancellable == null) {
+        logCancellable = kafkaClient.getConsumer().prepare()
+                                    .addFromBeginning(Constants.LOG_TOPIC, 0)
+                                    .consume(new LogMessageCallback(logHandlers));
+      }
     }
   }
 
@@ -119,7 +126,7 @@ public abstract class AbstractTwillController extends AbstractZKServiceControlle
     }
     if (kafkaClient != null) {
       // Safe to call stop no matter what state the KafkaClientService is in.
-      kafkaClient.stopAndWait();
+      kafkaClient.stopAsync().awaitTerminated();
     }
   }
 
@@ -133,10 +140,15 @@ public abstract class AbstractTwillController extends AbstractZKServiceControlle
 
     logHandlers.add(handler);
     if (logHandlers.size() == 1) {
-      kafkaClient.startAndWait();
-      logCancellable = kafkaClient.getConsumer().prepare()
-        .addFromBeginning(Constants.LOG_TOPIC, 0)
-        .consume(new LogMessageCallback(logHandlers));
+      if (kafkaClient.state() == Service.State.NEW) {
+        kafkaClient.startAsync();
+      }
+      kafkaClient.awaitRunning();
+      if (logCancellable == null) {
+        logCancellable = kafkaClient.getConsumer().prepare()
+          .addFromBeginning(Constants.LOG_TOPIC, 0)
+          .consume(new LogMessageCallback(logHandlers));
+      }
     }
   }
 
@@ -198,7 +210,7 @@ public abstract class AbstractTwillController extends AbstractZKServiceControlle
                                public String apply(Set<String> input) {
                                  return runnable;
                                }
-                             });
+                             }, MoreExecutors.directExecutor());
   }
 
   @Override
@@ -280,7 +292,7 @@ public abstract class AbstractTwillController extends AbstractZKServiceControlle
       long nextOffset = -1L;
       while (messages.hasNext()) {
         FetchedMessage message = messages.next();
-        String json = Charsets.UTF_8.decode(message.getPayload()).toString();
+        String json = StandardCharsets.UTF_8.decode(message.getPayload()).toString();
         try {
           LogEntry entry = GSON.fromJson(json, LogEntry.class);
           if (entry != null) {

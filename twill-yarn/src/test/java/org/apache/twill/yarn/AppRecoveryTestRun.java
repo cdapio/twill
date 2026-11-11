@@ -139,7 +139,7 @@ public class AppRecoveryTestRun extends BaseYarnTest {
   }
 
   /**
-   * Application for testing
+   * Application for testing.
    */
   public static final class TestApp implements TwillApplication {
 
@@ -161,7 +161,7 @@ public class AppRecoveryTestRun extends BaseYarnTest {
   }
 
   /**
-   * Runnable for testing
+   * Runnable for testing.
    */
   public static final class TestRunnable extends AbstractTwillRunnable {
 

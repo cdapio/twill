@@ -18,9 +18,7 @@
 package org.apache.twill.internal.zookeeper;
 
 import com.google.common.base.Preconditions;
-import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -29,9 +27,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  *
@@ -79,7 +81,11 @@ public final class InMemoryZKServer implements Service {
 
   private InMemoryZKServer(File dataDir, int tickTime, boolean autoClean, int port) {
     if (dataDir == null) {
-      dataDir = Files.createTempDir();
+      try {
+        dataDir = Files.createTempDirectory("zk").toFile();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to create temp directory for ZK data", e);
+      }
       autoClean = true;
     } else {
       Preconditions.checkArgument(dataDir.isDirectory() || dataDir.mkdirs() || dataDir.isDirectory());
@@ -123,13 +129,19 @@ public final class InMemoryZKServer implements Service {
   }
 
   @Override
-  public ListenableFuture<State> start() {
-    return delegateService.start();
+  public Service startAsync() {
+    delegateService.startAsync();
+    return this;
   }
 
   @Override
-  public State startAndWait() {
-    return delegateService.startAndWait();
+  public void awaitRunning() {
+    delegateService.awaitRunning();
+  }
+
+  @Override
+  public void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    delegateService.awaitRunning(timeout, unit);
   }
 
   @Override
@@ -143,13 +155,24 @@ public final class InMemoryZKServer implements Service {
   }
 
   @Override
-  public ListenableFuture<State> stop() {
-    return delegateService.stop();
+  public Service stopAsync() {
+    delegateService.stopAsync();
+    return this;
   }
 
   @Override
-  public State stopAndWait() {
-    return delegateService.stopAndWait();
+  public void awaitTerminated() {
+    delegateService.awaitTerminated();
+  }
+
+  @Override
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
+    delegateService.awaitTerminated(timeout, unit);
+  }
+
+  @Override
+  public Throwable failureCause() {
+    return delegateService.failureCause();
   }
 
   @Override

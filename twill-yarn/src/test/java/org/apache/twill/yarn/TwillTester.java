@@ -111,7 +111,7 @@ public class TwillTester extends ExternalResource {
 
     // Starts Zookeeper
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     // Start YARN mini cluster
     File miniDFSDir = tmpFolder.newFolder();
@@ -130,12 +130,21 @@ public class TwillTester extends ExternalResource {
     conf.set("yarn.resourcemanager.scheduler.class",
              "org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler");
     conf.set("yarn.scheduler.capacity.resource-calculator",
-             "org.apache.hadoop.yarn.util.resource.DominantResourceCalculator");
+             "org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator");
     conf.setBoolean("yarn.scheduler.include-port-in-node-name", true);
     conf.set("yarn.nodemanager.vmem-pmem-ratio", "100.1");
     conf.set("yarn.nodemanager.vmem-check-enabled", "false");
+    conf.set("yarn.nodemanager.pmem-check-enabled", "false");
     conf.set("yarn.scheduler.minimum-allocation-mb", "128");
-    conf.set("yarn.nodemanager.delete.debug-delay-sec", "3600");
+    conf.set("yarn.scheduler.capacity.minimum-allocation-mb", "128");
+    conf.set("yarn.scheduler.capacity.root.default.minimum-allocation-mb", "128");
+    conf.set("yarn.nodemanager.delete.debug-delay-sec", "0");
+    conf.set("yarn.scheduler.capacity.maximum-am-resource-percent", "1.0");
+    conf.set("yarn.scheduler.capacity.root.default.maximum-am-resource-percent", "1.0");
+    conf.set("yarn.nodemanager.resource.cpu-vcores", "16");
+    conf.set("yarn.nodemanager.resource.memory-mb", "8192");
+    conf.set("yarn.nodemanager.disk-health-checker.max-disk-utilization-per-disk-percentage", "100.0");
+    conf.setBoolean("yarn.nodemanager.disk-health-checker.enable", false);
 
     conf.set(Configs.Keys.LOCAL_STAGING_DIRECTORY, tmpFolder.newFolder().getAbsolutePath());
 
@@ -241,7 +250,7 @@ public class TwillTester extends ExternalResource {
 
   private void stopQuietly(Service service) {
     try {
-      service.stopAndWait();
+      service.stopAsync().awaitTerminated();
     } catch (Exception e) {
       LOG.warn("Failed to stop service {}.", service, e);
     }

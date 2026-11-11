@@ -17,7 +17,6 @@
  */
 package org.apache.twill.yarn;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
@@ -78,8 +77,10 @@ public final class LocalFileTestRun extends BaseYarnTest {
 
     InetSocketAddress socketAddress = discoverables.iterator().next().getSocketAddress();
     try (Socket socket = new Socket(socketAddress.getAddress(), socketAddress.getPort())) {
-      PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8), true);
-      LineReader reader = new LineReader(new InputStreamReader(socket.getInputStream(), Charsets.UTF_8));
+      PrintWriter writer = new PrintWriter(
+        new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
+      LineReader reader = new LineReader(
+        new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
 
       String msg = "Local file test";
       writer.println(msg);
@@ -142,11 +143,11 @@ public final class LocalFileTestRun extends BaseYarnTest {
 
       LOG.info("handleRequest");
       // Read from the localized file
-      writer.println(Files.readFirstLine(new File("header/header.txt"), Charsets.UTF_8));
+      writer.println(Files.readFirstLine(new File("header/header.txt"), StandardCharsets.UTF_8));
       // Read from the request
       writer.println(reader.readLine());
       // Read from resource
-      writer.println(Files.readFirstLine(new File(footerURL.toURI()), Charsets.UTF_8));
+      writer.println(Files.readFirstLine(new File(footerURL.toURI()), StandardCharsets.UTF_8));
       LOG.info("Flushed response");
     }
   }

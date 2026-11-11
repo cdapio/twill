@@ -21,7 +21,10 @@ import com.google.common.base.Function;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.Service.Listener;
+import com.google.common.util.concurrent.Service.State;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.twill.api.RunId;
@@ -43,7 +46,7 @@ import javax.annotation.Nullable;
  * An abstract base class for implementing {@link ServiceController} that deal with Service state transition and
  * listener callback.
  */
-public abstract class AbstractExecutionServiceController implements ServiceController, Service {
+public abstract class AbstractExecutionServiceController implements ServiceController {
 
   private final RunId runId;
   private final ListenerExecutors listenerExecutors;
@@ -58,6 +61,7 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     this.serviceDelegate = new ServiceDelegate();
     this.terminationFuture = SettableFuture.create();
     this.terminationTimeoutMillis = new AtomicLong(-1L);
+    this.serviceDelegate.addListener(listenerExecutors, Threads.SAME_THREAD_EXECUTOR);
     addListener(new ServiceListenerAdapter() {
       @Override
       public void failed(State from, Throwable failure) {
@@ -93,9 +97,10 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     }
 
     terminationTimeoutMillis.compareAndSet(-1L, timeout);
-    stop();
+    stopAsync();
     return Futures.transform(terminationFuture,
-                             (Function<State, ServiceController>) input -> AbstractExecutionServiceController.this);
+                             (Function<State, ServiceController>) input -> AbstractExecutionServiceController.this,
+                             MoreExecutors.directExecutor());
   }
 
   @Nullable
@@ -129,49 +134,48 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     }, executor);
   }
 
+  public final void addListener(Listener listener, Executor executor) {
+    listenerExecutors.addListener(new ListenerExecutor(listener, executor));
+  }
+
+  public final Service startAsync() {
+    serviceDelegate.startAsync();
+    return serviceDelegate;
+  }
+
+  public final void awaitRunning() {
+    serviceDelegate.awaitRunning();
+  }
+
+  public final void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    serviceDelegate.awaitRunning(timeout, unit);
+  }
+
+  public final boolean isRunning() {
+    return serviceDelegate.isRunning();
+  }
+
+  public final State state() {
+    return serviceDelegate.state();
+  }
+
+  public final Service stopAsync() {
+    serviceDelegate.stopAsync();
+    return serviceDelegate;
+  }
+
   @Override
   public void awaitTerminated() throws ExecutionException {
     Uninterruptibles.getUninterruptibly(terminationFuture);
   }
 
   @Override
-  public void awaitTerminated(long timeout, TimeUnit timeoutUnit) throws TimeoutException, ExecutionException {
-    Uninterruptibles.getUninterruptibly(terminationFuture, timeout, timeoutUnit);
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
+    Uninterruptibles.getUninterruptibly(terminationFuture, timeout, unit);
   }
 
-  public final void addListener(Listener listener, Executor executor) {
-    listenerExecutors.addListener(new ListenerExecutor(listener, executor));
-  }
-
-  @Override
-  public final ListenableFuture<State> start() {
-    serviceDelegate.addListener(listenerExecutors, Threads.SAME_THREAD_EXECUTOR);
-    return serviceDelegate.start();
-  }
-
-  @Override
-  public final State startAndWait() {
-    return Futures.getUnchecked(start());
-  }
-
-  @Override
-  public final boolean isRunning() {
-    return serviceDelegate.isRunning();
-  }
-
-  @Override
-  public final State state() {
-    return serviceDelegate.state();
-  }
-
-  @Override
-  public final State stopAndWait() {
-    return Futures.getUnchecked(stop());
-  }
-
-  @Override
-  public final ListenableFuture<State> stop() {
-    return serviceDelegate.stop();
+  public final Throwable failureCause() {
+    return serviceDelegate.failureCause();
   }
 
   protected Executor executor(final State state) {
@@ -213,15 +217,15 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     }
 
     @Override
-    protected Executor executor(State state) {
-      return AbstractExecutionServiceController.this.executor(state);
+    protected Executor executor() {
+      return AbstractExecutionServiceController.this.executor(state());
     }
   }
 
   /**
    * Inner class for dispatching listener call back to a list of listeners.
    */
-  private static final class ListenerExecutors implements Listener {
+  private static final class ListenerExecutors extends Listener {
 
     private interface Callback {
       void call(Listener listener);

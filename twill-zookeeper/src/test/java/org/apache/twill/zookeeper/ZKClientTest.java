@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.internal.zookeeper.KillZKSession;
 import org.apache.zookeeper.CreateMode;
@@ -66,11 +67,11 @@ public class ZKClientTest {
   @Test
   public void testChroot() throws Exception {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService client = ZKClientService.Builder.of(zkServer.getConnectionStr() + "/chroot").build();
-      client.startAndWait();
+      client.startAsync().awaitRunning();
       try {
         List<OperationFuture<String>> futures = Lists.newArrayList();
         futures.add(client.create("/test1/test2", null, CreateMode.PERSISTENT));
@@ -81,21 +82,21 @@ public class ZKClientTest {
         Assert.assertNotNull(client.exists("/test1/test3").get());
 
       } finally {
-        client.stopAndWait();
+        client.stopAsync().awaitTerminated();
       }
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
   @Test
   public void testCreateParent() throws ExecutionException, InterruptedException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService client = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      client.startAndWait();
+      client.startAsync().awaitRunning();
 
       try {
         String path = client.create("/test1/test2/test3/test4/test5",
@@ -109,21 +110,21 @@ public class ZKClientTest {
         }
         Assert.assertTrue(Arrays.equals("testing".getBytes(), client.getData(path).get().getData()));
       } finally {
-        client.stopAndWait();
+        client.stopAsync().awaitTerminated();
       }
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
   @Test
   public void testGetChildren() throws ExecutionException, InterruptedException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService client = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      client.startAndWait();
+      client.startAsync().awaitRunning();
 
       try {
         client.create("/test", null, CreateMode.PERSISTENT).get();
@@ -138,21 +139,21 @@ public class ZKClientTest {
         Assert.assertEquals(ImmutableSet.of("c1", "c2"), ImmutableSet.copyOf(nodeChildren.getChildren()));
 
       } finally {
-        client.stopAndWait();
+        client.stopAsync().awaitTerminated();
       }
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
   @Test
   public void testSetData() throws ExecutionException, InterruptedException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService client = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      client.startAndWait();
+      client.startAsync().awaitRunning();
 
       client.create("/test", null, CreateMode.PERSISTENT).get();
       Assert.assertNull(client.getData("/test").get().getData());
@@ -161,14 +162,14 @@ public class ZKClientTest {
       Assert.assertTrue(Arrays.equals("testing".getBytes(), client.getData("/test").get().getData()));
 
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
   @Test
   public void testExpireRewatch() throws InterruptedException, IOException, ExecutionException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       final CountDownLatch expireReconnectLatch = new CountDownLatch(1);
@@ -186,7 +187,7 @@ public class ZKClientTest {
               }
             }
           }).build()));
-      client.startAndWait();
+      client.startAsync().awaitRunning();
 
       try {
         final BlockingQueue<Watcher.Event.EventType> events = new LinkedBlockingQueue<>();
@@ -203,7 +204,7 @@ public class ZKClientTest {
               public void onFailure(Throwable t) {
                 LOG.error("Failed to call exists on /expireRewatch", t);
               }
-            });
+            }, MoreExecutors.directExecutor());
           }
         });
 
@@ -222,10 +223,10 @@ public class ZKClientTest {
 
         Assert.assertEquals(Watcher.Event.EventType.NodeDeleted, events.poll(60, TimeUnit.SECONDS));
       } finally {
-        client.stopAndWait();
+        client.stopAsync().awaitTerminated();
       }
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
@@ -233,7 +234,7 @@ public class ZKClientTest {
   public void testRetry() throws ExecutionException, InterruptedException, TimeoutException, IOException {
     File dataDir = tmpFolder.newFolder();
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setDataDir(dataDir).setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
     int port = zkServer.getLocalAddress().getPort();
 
     final CountDownLatch disconnectLatch = new CountDownLatch(1);
@@ -248,9 +249,9 @@ public class ZKClientTest {
     }).build(), RetryStrategies.fixDelay(0, TimeUnit.SECONDS)));
 
     final CountDownLatch createLatch = new CountDownLatch(1);
-    client.startAndWait();
+    client.startAsync().awaitRunning();
     try {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
 
       Assert.assertTrue(disconnectLatch.await(1, TimeUnit.SECONDS));
       Futures.addCallback(client.create("/testretry/test", null, CreateMode.PERSISTENT), new FutureCallback<String>() {
@@ -263,7 +264,7 @@ public class ZKClientTest {
         public void onFailure(Throwable t) {
           t.printStackTrace(System.out);
         }
-      });
+      }, MoreExecutors.directExecutor());
 
       TimeUnit.SECONDS.sleep(2);
       zkServer = InMemoryZKServer.builder()
@@ -272,21 +273,21 @@ public class ZKClientTest {
                                  .setPort(port)
                                  .setTickTime(1000)
                                  .build();
-      zkServer.startAndWait();
+      zkServer.startAsync().awaitRunning();
       try {
         Assert.assertTrue(createLatch.await(10, TimeUnit.SECONDS));
       } finally {
-        zkServer.stopAndWait();
+        zkServer.stopAsync().awaitTerminated();
       }
     } finally {
-      client.stopAndWait();
+      client.stopAsync().awaitTerminated();
     }
   }
 
   @Test
   public void testACL() throws IOException, ExecutionException, InterruptedException, NoSuchAlgorithmException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       String userPass = "user:pass";
@@ -297,10 +298,10 @@ public class ZKClientTest {
                                                 .of(zkServer.getConnectionStr())
                                                 .addAuthInfo("digest", userPass.getBytes())
                                                 .build();
-      zkClient.startAndWait();
+      zkClient.startAsync().awaitRunning();
 
       ZKClientService noAuthClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
-      noAuthClient.startAndWait();
+      noAuthClient.startAsync().awaitRunning();
 
 
       // Create a node that is readable by all client, but admin for the creator
@@ -335,11 +336,11 @@ public class ZKClientTest {
       // Write again with the non-auth client, now should succeed.
       noAuthClient.setData(path, "test2".getBytes()).get();
 
-      noAuthClient.stopAndWait();
-      zkClient.stopAndWait();
+      noAuthClient.stopAsync().awaitTerminated();
+      zkClient.stopAsync().awaitTerminated();
 
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
@@ -348,7 +349,7 @@ public class ZKClientTest {
     // This is to test deadlock bug as described in (TWILL-110)
     // This test has very high chance to get deadlock before the bug fix, hence failed with timeout.
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
     try {
       for (int i = 0; i < 5000; i++) {
         final ZKClientService zkClient = ZKClientService.Builder.of(zkServer.getConnectionStr()).build();
@@ -358,12 +359,12 @@ public class ZKClientTest {
             LOG.debug("Connection event: {}", event);
           }
         });
-        zkClient.startAndWait();
-        zkClient.stopAndWait();
+        zkClient.startAsync().awaitRunning();
+        zkClient.stopAsync().awaitTerminated();
       }
 
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 
@@ -387,10 +388,10 @@ public class ZKClientTest {
       serverThread.start();
 
       ZKClientService zkClient = ZKClientService.Builder.of("localhost:" + serverSocket.getLocalPort()).build();
-      zkClient.start();
+      zkClient.startAsync();
       Assert.assertTrue(connectLatch.await(10, TimeUnit.SECONDS));
 
-      zkClient.stopAndWait();
+      zkClient.stopAsync().awaitTerminated();
       serverThread.interrupt();
     }
   }
@@ -398,13 +399,13 @@ public class ZKClientTest {
   @Test
   public void testNamespace() throws ExecutionException, InterruptedException {
     InMemoryZKServer zkServer = InMemoryZKServer.builder().setTickTime(1000).build();
-    zkServer.startAndWait();
+    zkServer.startAsync().awaitRunning();
 
     try {
       ZKClientService zkClient = ZKClientService.Builder
         .of(zkServer.getConnectionStr())
         .build();
-      zkClient.startAndWait();
+      zkClient.startAsync().awaitRunning();
 
       ZKClient zk = ZKClients.namespace(zkClient, "/test");
       // Create the "/ should create the "/test" from the root
@@ -446,7 +447,7 @@ public class ZKClientTest {
       // The namespace must be gone
       Assert.assertNull(zkClient.exists("/test").get());
     } finally {
-      zkServer.stopAndWait();
+      zkServer.stopAsync().awaitTerminated();
     }
   }
 }

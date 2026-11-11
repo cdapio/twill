@@ -77,7 +77,7 @@ public final class MaxRetriesTestRun extends BaseYarnTest {
   }
 
   @Test
-  public void maxRetriesWithIncreasedInstances() throws InterruptedException, ExecutionException {
+  public void maxRetriesWithIncreasedInstances() throws InterruptedException, ExecutionException, TimeoutException {
     TwillRunner runner = getTwillRunner();
     final int maxRetries = 3;
     final AtomicInteger retriesSeen = new AtomicInteger(0);
@@ -107,18 +107,18 @@ public final class MaxRetriesTestRun extends BaseYarnTest {
 
     try {
       // wait for initial instances to have started
-      allRunning.await();
+      Assert.assertTrue(allRunning.await(2, TimeUnit.MINUTES));
 
       /*
        * now increase the number of instances. these should fail since there instance ids are > 1. afterwards, the
        * number of retries should be 3 since only this one instance failed.
        */
       controller.changeInstances(FailingInstanceServer.class.getSimpleName(), 3);
-      retriesExhausted.await();
+      Assert.assertTrue(retriesExhausted.await(2, TimeUnit.MINUTES));
       Assert.assertEquals(3, retriesSeen.get());
 
     } finally {
-      controller.terminate().get();
+      controller.terminate().get(2, TimeUnit.MINUTES);
     }
   }
 

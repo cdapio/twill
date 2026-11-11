@@ -17,14 +17,13 @@
  */
 package org.apache.twill.internal;
 
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.twill.common.Threads;
 
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -38,27 +37,25 @@ public final class Services {
    *
    * @param firstService First service to start.
    * @param moreServices The rest services to start.
-   * @return A {@link ListenableFuture} that will be completed when all services are started, with the
-   *         result carries the completed {@link ListenableFuture} of each corresponding service in the
-   *         same order as they are passed to this method.
+   * @return A {@link ListenableFuture} that will be completed when all services are started.
    */
-  public static ListenableFuture<List<ListenableFuture<Service.State>>> chainStart(Service firstService,
-                                                                                   Service...moreServices) {
+  public static ListenableFuture<Service.State> chainStart(Service firstService,
+                                                            Service...moreServices) {
     return doChain(true, firstService, moreServices);
   }
 
   /**
    * Stops a list of {@link Service} one by one. It behaves the same as
    * {@link #chainStart(com.google.common.util.concurrent.Service, com.google.common.util.concurrent.Service...)}
-   * except {@link com.google.common.util.concurrent.Service#stop()} is called instead of start.
+   * except {@link com.google.common.util.concurrent.Service#stopAsync()} is called instead of startAsync.
    *
    * @param firstService First service to stop.
    * @param moreServices The rest services to stop.
    * @return A {@link ListenableFuture} that will be completed when all services are stopped.
    * @see #chainStart(com.google.common.util.concurrent.Service, com.google.common.util.concurrent.Service...)
    */
-  public static ListenableFuture<List<ListenableFuture<Service.State>>> chainStop(Service firstService,
-                                                                                  Service...moreServices) {
+  public static ListenableFuture<Service.State> chainStop(Service firstService,
+                                                           Service...moreServices) {
     return doChain(false, firstService, moreServices);
   }
 
@@ -88,7 +85,9 @@ public final class Services {
     if (state == Service.State.TERMINATED) {
       return Futures.immediateFuture(state);
     } else if (state == Service.State.FAILED) {
-      return Futures.immediateFailedFuture(new IllegalStateException("Service failed with unknown exception."));
+      Throwable failure = service.failureCause();
+      return Futures.immediateFailedFuture(
+        failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
     }
 
     return resultFuture;
@@ -97,43 +96,106 @@ public final class Services {
   /**
    * Performs the actual logic of chain Service start/stop.
    */
-  private static ListenableFuture<List<ListenableFuture<Service.State>>> doChain(boolean doStart,
-                                                                                 Service firstService,
-                                                                                 Service...moreServices) {
-    SettableFuture<List<ListenableFuture<Service.State>>> resultFuture = SettableFuture.create();
-    List<ListenableFuture<Service.State>> result = Lists.newArrayListWithCapacity(moreServices.length + 1);
-
-    ListenableFuture<Service.State> future = doStart ? firstService.start() : firstService.stop();
-    future.addListener(createChainListener(future, moreServices, new AtomicInteger(0), result, resultFuture, doStart),
-                       Threads.SAME_THREAD_EXECUTOR);
+  private static ListenableFuture<Service.State> doChain(boolean doStart,
+                                                          Service firstService,
+                                                          Service...moreServices) {
+    final SettableFuture<Service.State> resultFuture = SettableFuture.create();
+    final AtomicInteger idx = new AtomicInteger(0);
+    startOrStop(doStart, firstService, moreServices, idx, resultFuture);
     return resultFuture;
   }
 
   /**
-   * Returns a {@link Runnable} that can be used as a {@link ListenableFuture} listener to trigger
-   * further service action or completing the result future. Used by
-   * {@link #doChain(boolean, com.google.common.util.concurrent.Service, com.google.common.util.concurrent.Service...)}
+   * Starts or stops a service and adds a listener to chain the next service when the operation completes.
    */
-  private static Runnable createChainListener(final ListenableFuture<Service.State> future, final Service[] services,
-                                              final AtomicInteger idx,
-                                              final List<ListenableFuture<Service.State>> result,
-                                              final SettableFuture<List<ListenableFuture<Service.State>>> resultFuture,
-                                              final boolean doStart) {
-    return new Runnable() {
+  private static void startOrStop(final boolean doStart, final Service service, final Service[] moreServices,
+                                  final AtomicInteger idx,
+                                  final SettableFuture<Service.State> resultFuture) {
+    final AtomicBoolean handled = new AtomicBoolean(false);
+    service.addListener(new ServiceListenerAdapter() {
+      @Override
+      public void running() {
+        if (doStart && handled.compareAndSet(false, true)) {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.RUNNING);
+        }
+      }
 
       @Override
-      public void run() {
-        result.add(future);
-        int nextIdx = idx.getAndIncrement();
-        if (nextIdx == services.length) {
-          resultFuture.set(result);
-          return;
+      public void terminated(Service.State from) {
+        if (handled.compareAndSet(false, true)) {
+          if (doStart) {
+            resultFuture.setException(
+              new IllegalStateException("Service " + service + " terminated while starting from state " + from));
+          } else {
+            advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+          }
         }
-        ListenableFuture<Service.State> actionFuture = doStart ? services[nextIdx].start() : services[nextIdx].stop();
-        actionFuture.addListener(createChainListener(actionFuture, services, idx, result, resultFuture, doStart),
-                                 Threads.SAME_THREAD_EXECUTOR);
       }
-    };
+
+      @Override
+      public void failed(Service.State from, Throwable failure) {
+        if (handled.compareAndSet(false, true)) {
+          if (doStart) {
+            resultFuture.setException(failure);
+          } else {
+            advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+          }
+        }
+      }
+    }, Threads.SAME_THREAD_EXECUTOR);
+
+    try {
+      if (doStart) {
+        service.startAsync();
+      } else {
+        service.stopAsync();
+      }
+    } catch (Throwable t) {
+      if (handled.compareAndSet(false, true)) {
+        if (doStart) {
+          resultFuture.setException(t);
+        } else {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+        }
+      }
+      return;
+    }
+
+    Service.State state = service.state();
+    if (doStart && state == Service.State.RUNNING) {
+      if (handled.compareAndSet(false, true)) {
+        advanceChain(doStart, moreServices, idx, resultFuture, Service.State.RUNNING);
+      }
+    } else if (state == Service.State.TERMINATED) {
+      if (handled.compareAndSet(false, true)) {
+        if (doStart) {
+          resultFuture.setException(new IllegalStateException("Service " + service + " is already terminated."));
+        } else {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+        }
+      }
+    } else if (state == Service.State.FAILED) {
+      if (handled.compareAndSet(false, true)) {
+        if (doStart) {
+          Throwable failure = service.failureCause();
+          resultFuture.setException(
+            failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
+        } else {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+        }
+      }
+    }
+  }
+
+  private static void advanceChain(boolean doStart, Service[] moreServices,
+                                   AtomicInteger idx, SettableFuture<Service.State> resultFuture,
+                                   Service.State state) {
+    int nextIdx = idx.getAndIncrement();
+    if (nextIdx >= moreServices.length) {
+      resultFuture.set(state);
+      return;
+    }
+    startOrStop(doStart, moreServices[nextIdx], moreServices, idx, resultFuture);
   }
 
   private Services() {

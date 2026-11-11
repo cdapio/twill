@@ -17,8 +17,6 @@
  */
 package org.apache.twill.internal.zookeeper;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -39,7 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -146,7 +146,7 @@ public final class LeaderElection extends AbstractService {
       LOG.warn("Failed to get local hostname.", e);
       hostname = "unknown";
     }
-    return hostname.getBytes(Charsets.UTF_8);
+    return hostname.getBytes(StandardCharsets.UTF_8);
   }
 
   private void register() {
@@ -234,7 +234,7 @@ public final class LeaderElection extends AbstractService {
       handler.leader();
     } catch (Throwable t) {
       LOG.warn("Exception thrown when calling leader() method. Withdraw from the leader election process.", t);
-      stop();
+      stopAsync();
     }
   }
 
@@ -245,7 +245,7 @@ public final class LeaderElection extends AbstractService {
       handler.follower();
     } catch (Throwable t) {
       LOG.warn("Exception thrown when calling follower() method. Withdraw from the leader election process.", t);
-      stop();
+      stopAsync();
     }
   }
 
@@ -322,8 +322,8 @@ public final class LeaderElection extends AbstractService {
   }
 
   /**
-   * Find the node to watch for and return it in the {@link com.google.common.base.Optional} value. If this client is
-   * the leader, return an {@link com.google.common.base.Optional#absent()}. This method also tries to set the
+   * Find the node to watch for and return it in the {@link Optional} value. If this client is
+   * the leader, return an {@link Optional#empty()}. This method also tries to set the
    * zkNodePath if it is not set and return {@code null} if the zkNodePath cannot be determined.
    */
   private Optional<String> findNodeToWatch(List<String> nodes) {
@@ -354,7 +354,7 @@ public final class LeaderElection extends AbstractService {
       }
     }
 
-    return nodeToWatch == null ? Optional.<String>absent() : Optional.of(nodeToWatch);
+    return nodeToWatch == null ? Optional.<String>empty() : Optional.of(nodeToWatch);
   }
 
   /**

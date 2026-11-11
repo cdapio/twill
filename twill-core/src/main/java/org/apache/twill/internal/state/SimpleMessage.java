@@ -17,8 +17,10 @@
  */
 package org.apache.twill.internal.state;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import org.apache.twill.api.Command;
+
+import java.util.Objects;
 
 /**
  * Implementation of {@code Message} interface to pass information about {@code Command} to execute.
@@ -59,7 +61,7 @@ final class SimpleMessage implements Message {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(Message.class)
+    return MoreObjects.toStringHelper(Message.class)
       .add("type", type)
       .add("scope", scope)
       .add("runnable", runnableName)
@@ -69,7 +71,7 @@ final class SimpleMessage implements Message {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(type, scope, runnableName, command);
+    return Objects.hash(type, scope, runnableName, command);
   }
 
   @Override
@@ -83,7 +85,7 @@ final class SimpleMessage implements Message {
     Message other = (Message) obj;
     return type == other.getType()
       && scope == other.getScope()
-      && Objects.equal(runnableName, other.getRunnableName())
-      && Objects.equal(command, other.getCommand());
+      && Objects.equals(runnableName, other.getRunnableName())
+      && Objects.equals(command, other.getCommand());
   }
 }

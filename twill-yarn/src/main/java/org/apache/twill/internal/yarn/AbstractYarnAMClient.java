@@ -225,7 +225,7 @@ public abstract class AbstractYarnAMClient<T> extends AbstractIdleService implem
   }
 
   /**
-   * Returns the ContainerId given a container ID string
+   * Returns the ContainerId given a container ID string.
    *
    * @param containerIdStr the container ID string to lookup
    * @return A {@link ContainerId} instance representing the result.

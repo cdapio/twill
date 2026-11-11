@@ -46,7 +46,7 @@ public class ElectionRegistry {
    */
   public Cancellable register(String name, ElectionHandler handler) {
     LeaderElection election = new LeaderElection(zkClient, name, handler);
-    election.start();
+    election.startAsync();
     registry.put(name, election);
     return new CancellableElection(name, election);
   }
@@ -56,7 +56,7 @@ public class ElectionRegistry {
    */
   public void shutdown() {
     for (LeaderElection election : registry.values()) {
-      election.stop();
+      election.stopAsync();
     }
   }
 
@@ -71,7 +71,7 @@ public class ElectionRegistry {
 
     @Override
     public void cancel() {
-      election.stop();
+      election.stopAsync();
       registry.remove(name, election);
     }
   }

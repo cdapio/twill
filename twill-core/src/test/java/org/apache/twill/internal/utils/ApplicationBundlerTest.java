@@ -132,7 +132,9 @@ public class ApplicationBundlerTest {
           target.mkdirs();
         } else {
           target.getParentFile().mkdirs();
-          ByteStreams.copy(jarInput, Files.newOutputStreamSupplier(target));
+          try (java.io.OutputStream os = new java.io.FileOutputStream(target)) {
+            ByteStreams.copy(jarInput, os);
+          }
         }
 
         jarEntry = jarInput.getNextJarEntry();
