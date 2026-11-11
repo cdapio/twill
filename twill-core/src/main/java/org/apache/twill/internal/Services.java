@@ -108,7 +108,7 @@ public final class Services {
   /**
    * Starts or stops a service and adds a listener to chain the next service when the operation completes.
    */
-  private static void startOrStop(final boolean doStart, Service service, final Service[] moreServices,
+  private static void startOrStop(final boolean doStart, final Service service, final Service[] moreServices,
                                   final AtomicInteger idx,
                                   final SettableFuture<Service.State> resultFuture) {
     final AtomicBoolean handled = new AtomicBoolean(false);
@@ -116,31 +116,31 @@ public final class Services {
       @Override
       public void running() {
         if (doStart && handled.compareAndSet(false, true)) {
-          onServiceOperationComplete(Service.State.RUNNING);
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.RUNNING);
         }
       }
 
       @Override
       public void terminated(Service.State from) {
-        if (!doStart && handled.compareAndSet(false, true)) {
-          onServiceOperationComplete(Service.State.TERMINATED);
+        if (handled.compareAndSet(false, true)) {
+          if (doStart) {
+            resultFuture.setException(
+              new IllegalStateException("Service " + service + " terminated while starting from state " + from));
+          } else {
+            advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+          }
         }
       }
 
       @Override
       public void failed(Service.State from, Throwable failure) {
         if (handled.compareAndSet(false, true)) {
-          resultFuture.setException(failure);
+          if (doStart) {
+            resultFuture.setException(failure);
+          } else {
+            advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+          }
         }
-      }
-
-      private void onServiceOperationComplete(Service.State state) {
-        int nextIdx = idx.getAndIncrement();
-        if (nextIdx >= moreServices.length) {
-          resultFuture.set(state);
-          return;
-        }
-        startOrStop(doStart, moreServices[nextIdx], moreServices, idx, resultFuture);
       }
     }, Threads.SAME_THREAD_EXECUTOR);
 
@@ -152,28 +152,50 @@ public final class Services {
       }
     } catch (Throwable t) {
       if (handled.compareAndSet(false, true)) {
-        resultFuture.setException(t);
+        if (doStart) {
+          resultFuture.setException(t);
+        } else {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+        }
       }
       return;
     }
 
     Service.State state = service.state();
-    if (!doStart && state == Service.State.TERMINATED) {
+    if (doStart && state == Service.State.RUNNING) {
       if (handled.compareAndSet(false, true)) {
-        int nextIdx = idx.getAndIncrement();
-        if (nextIdx >= moreServices.length) {
-          resultFuture.set(Service.State.TERMINATED);
+        advanceChain(doStart, moreServices, idx, resultFuture, Service.State.RUNNING);
+      }
+    } else if (state == Service.State.TERMINATED) {
+      if (handled.compareAndSet(false, true)) {
+        if (doStart) {
+          resultFuture.setException(new IllegalStateException("Service " + service + " is already terminated."));
         } else {
-          startOrStop(doStart, moreServices[nextIdx], moreServices, idx, resultFuture);
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
         }
       }
     } else if (state == Service.State.FAILED) {
       if (handled.compareAndSet(false, true)) {
-        Throwable failure = service.failureCause();
-        resultFuture.setException(
-          failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
+        if (doStart) {
+          Throwable failure = service.failureCause();
+          resultFuture.setException(
+            failure != null ? failure : new IllegalStateException("Service failed with unknown exception."));
+        } else {
+          advanceChain(doStart, moreServices, idx, resultFuture, Service.State.TERMINATED);
+        }
       }
     }
+  }
+
+  private static void advanceChain(boolean doStart, Service[] moreServices,
+                                   AtomicInteger idx, SettableFuture<Service.State> resultFuture,
+                                   Service.State state) {
+    int nextIdx = idx.getAndIncrement();
+    if (nextIdx >= moreServices.length) {
+      resultFuture.set(state);
+      return;
+    }
+    startOrStop(doStart, moreServices[nextIdx], moreServices, idx, resultFuture);
   }
 
   private Services() {

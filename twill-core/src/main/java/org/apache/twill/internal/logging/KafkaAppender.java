@@ -173,7 +173,6 @@ public final class KafkaAppender extends UnsynchronizedAppenderBase<ILoggingEven
 
   @Override
   public void stop() {
-    forceFlush();
     super.stop();
     scheduler.shutdownNow();
     Futures.getUnchecked(Services.chainStop(kafkaClient, zkClientService));

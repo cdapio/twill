@@ -61,6 +61,7 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
     this.serviceDelegate = new ServiceDelegate();
     this.terminationFuture = SettableFuture.create();
     this.terminationTimeoutMillis = new AtomicLong(-1L);
+    this.serviceDelegate.addListener(listenerExecutors, Threads.SAME_THREAD_EXECUTOR);
     addListener(new ServiceListenerAdapter() {
       @Override
       public void failed(State from, Throwable failure) {
@@ -138,7 +139,6 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
   }
 
   public final Service startAsync() {
-    serviceDelegate.addListener(listenerExecutors, Threads.SAME_THREAD_EXECUTOR);
     serviceDelegate.startAsync();
     return serviceDelegate;
   }
@@ -165,12 +165,12 @@ public abstract class AbstractExecutionServiceController implements ServiceContr
   }
 
   @Override
-  public final void awaitTerminated() throws ExecutionException {
+  public void awaitTerminated() throws ExecutionException {
     Uninterruptibles.getUninterruptibly(terminationFuture);
   }
 
   @Override
-  public final void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException, ExecutionException {
     Uninterruptibles.getUninterruptibly(terminationFuture, timeout, unit);
   }
 
