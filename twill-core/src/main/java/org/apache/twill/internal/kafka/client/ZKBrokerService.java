@@ -17,7 +17,6 @@
  */
 package org.apache.twill.internal.kafka.client;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -51,6 +50,7 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -307,7 +307,7 @@ public final class ZKBrokerService extends AbstractIdleService implements Broker
     if (data == null) {
       return null;
     }
-    return GSON.fromJson(new String(data, Charsets.UTF_8), type);
+    return GSON.fromJson(new String(data, StandardCharsets.UTF_8), type);
   }
 
   /**

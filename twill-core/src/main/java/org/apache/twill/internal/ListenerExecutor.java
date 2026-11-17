@@ -29,7 +29,7 @@ import java.util.concurrent.Executor;
  * Wrapper for {@link Service.Listener} to have callback executed on a given {@link Executor}.
  * Also make sure each method is called at most once.
  */
-final class ListenerExecutor implements Service.Listener {
+final class ListenerExecutor extends Service.Listener {
 
   private static final Logger LOG = LoggerFactory.getLogger(ListenerExecutor.class);
 
