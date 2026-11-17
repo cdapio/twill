@@ -132,8 +132,8 @@ public abstract class BaseYarnTest {
    * @throws Exception if the task through exception or timeout.
    */
   public <T> void waitFor(T expected, Callable<T> callable, long timeout, long delay, TimeUnit unit) throws Exception {
-    Stopwatch stopwatch = new Stopwatch().start();
-    while (callable.call() != expected && stopwatch.elapsedTime(unit) < timeout) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    while (callable.call() != expected && stopwatch.elapsed(unit) < timeout) {
       unit.sleep(delay);
     }
   }

@@ -17,11 +17,11 @@
  */
 package org.apache.twill.internal.zookeeper;
 
-import com.google.common.base.Objects;
 import org.apache.twill.zookeeper.NodeChildren;
 import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  *
@@ -61,6 +61,6 @@ final class BasicNodeChildren implements NodeChildren {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(children, stat);
+    return Objects.hash(children, stat);
   }
 }

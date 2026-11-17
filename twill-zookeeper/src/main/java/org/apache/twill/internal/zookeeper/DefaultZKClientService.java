@@ -58,6 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
@@ -189,14 +190,14 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
                 // handle the failure
                 updateFailureResult(t, result, path, ignoreNodeExists);
               }
-            });
+            }, Threads.SAME_THREAD_EXECUTOR);
           }
 
           @Override
           public void onFailure(Throwable t) {
             result.setException(t);
           }
-        });
+        }, Threads.SAME_THREAD_EXECUTOR);
       }
 
       /**
@@ -236,7 +237,7 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
         String parentPath = path.substring(0, path.lastIndexOf('/'));
         return (parentPath.isEmpty() && !"/".equals(path)) ? "/" : parentPath;
       }
-    });
+    }, Threads.SAME_THREAD_EXECUTOR);
 
     return result;
   }
@@ -302,13 +303,19 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
   }
 
   @Override
-  public ListenableFuture<State> start() {
-    return serviceDelegate.start();
+  public Service startAsync() {
+    serviceDelegate.startAsync();
+    return this;
   }
 
   @Override
-  public State startAndWait() {
-    return serviceDelegate.startAndWait();
+  public void awaitRunning() {
+    serviceDelegate.awaitRunning();
+  }
+
+  @Override
+  public void awaitRunning(long timeout, TimeUnit unit) throws TimeoutException {
+    serviceDelegate.awaitRunning(timeout, unit);
   }
 
   @Override
@@ -322,13 +329,24 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
   }
 
   @Override
-  public ListenableFuture<State> stop() {
-    return serviceDelegate.stop();
+  public Service stopAsync() {
+    serviceDelegate.stopAsync();
+    return this;
   }
 
   @Override
-  public State stopAndWait() {
-    return serviceDelegate.stopAndWait();
+  public void awaitTerminated() {
+    serviceDelegate.awaitTerminated();
+  }
+
+  @Override
+  public void awaitTerminated(long timeout, TimeUnit unit) throws TimeoutException {
+    serviceDelegate.awaitTerminated(timeout, unit);
+  }
+
+  @Override
+  public Throwable failureCause() {
+    return serviceDelegate.failureCause();
   }
 
   @Override
@@ -519,7 +537,7 @@ public final class DefaultZKClientService extends AbstractZKClient implements ZK
             //
             // 1. session expired, hence the expired event is triggered
             // 2. The reconnect task executed. With Service.state() == RUNNING, it creates a new ZK client
-            // 3. Service.stop() gets called, Service.state() changed to STOPPING
+            // 3. Service.stopAsync() gets called, Service.state() changed to STOPPING
             // 4. The new ZK client created from the reconnect thread update the zooKeeper with the new one
             closeZooKeeper(zooKeeper.getAndSet(null));
             notifyStopped();
