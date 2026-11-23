@@ -23,7 +23,7 @@
 
     <groupId>io.cdap.twill</groupId>
     <artifactId>twill-parent</artifactId>
-    <version>1.4.0</version>
+    <version>1.4.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>CDAP Twill</name>
     <description>CDAP Twill project</description>
@@ -74,35 +74,17 @@
         <url>https://cdap.atlassian.net/browse/CDAP</url>
     </issueManagement>
 
-    <repositories>
-        <repository>
-            <id>sonatype</id>
-            <url>https://oss.sonatype.org/content/groups/public</url>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>sonatype.release</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype.snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <surefire.redirectTestOutputToFile>true</surefire.redirectTestOutputToFile>
-        <slf4j.version>1.7.30</slf4j.version>
-        <logback.version>1.2.11</logback.version>
+        <slf4j.version>2.0.19</slf4j.version>
+        <logback.version>1.6.8</logback.version>
         <guava.version>13.0.1</guava.version>
         <gson.version>2.2.4</gson.version>
         <findbugs.jsr305.version>2.0.1</findbugs.jsr305.version>
         <netty.version>4.1.75.Final</netty.version>
         <snappy-java.version>1.0.5</snappy-java.version>
-        <jcl-over-slf4j.version>1.7.2</jcl-over-slf4j.version>
+        <jcl-over-slf4j.version>2.0.19</jcl-over-slf4j.version>
         <asm.version>7.1</asm.version>
         <kafka.version>0.10.2.2</kafka.version>
         <zkclient.version>0.10</zkclient.version>
@@ -110,6 +92,7 @@
         <junit.version>4.11</junit.version>
         <jopt-simple.version>3.2</jopt-simple.version>
         <commons-compress.version>1.5</commons-compress.version>
+        <jaxb.version>2.3.1</jaxb.version>
         <force.mac.tests>false</force.mac.tests>
         <scala.version>2.12.10</scala.version>
     </properties>
@@ -122,8 +105,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.8.1</version>
                     <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
+                        <release>11</release>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -146,12 +128,10 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.1.1</version>
+                    <version>3.6.3</version>
                     <configuration>
                         <excludePackageNames>*.internal.*:echo:*.example.*</excludePackageNames>
-                        <links>
-                            <link>http://docs.oracle.com/javase/8/docs/api/</link>
-                        </links>
+                        <release>11</release>
                         <bottom>
                             <![CDATA[Copyright &#169; 2013-2020 <a href="http://www.apache.org">The Apache Software Foundation</a>. All rights reserved.]]>
                         </bottom>
@@ -229,13 +209,14 @@
                     </executions>
                 </plugin>
                 <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>1.6.2</version>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.8.0</version>
                     <extensions>true</extensions>
                     <configuration>
-                        <nexusUrl>https://oss.sonatype.org</nexusUrl>
-                        <serverId>sonatype.release</serverId>
+                        <publishingServerId>sonatype.release</publishingServerId>
+                        <autoPublish>false</autoPublish>
+                        <ignorePublishedComponents>true</ignorePublishedComponents>
                     </configuration>
                 </plugin>
                 <!-- GPG signature -->
@@ -280,18 +261,10 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>2.4.1</version>
-                <configuration>
-                    <autoVersionSubmodules>true</autoVersionSubmodules>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.14.1</version>
                 <configuration>
-                    <argLine>-Xmx2048m -XX:MaxPermSize=256m -Djava.awt.headless=true</argLine>
+                    <argLine>-Xmx2048m -Djava.awt.headless=true</argLine>
                     <redirectTestOutputToFile>${surefire.redirectTestOutputToFile}</redirectTestOutputToFile>
                     <systemPropertyVariables>
                         <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
@@ -308,8 +281,8 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.sonatype.plugins</groupId>
-                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -559,6 +532,38 @@
             <id>hadoop-2.6</id>
             <properties>
                 <hadoop.version>2.6.5</hadoop.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>1.8</version>
+                        <executions>
+                            <execution>
+                                <id>add-source</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>add-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/main/hadoop21</source>
+                                        <source>src/main/hadoop22</source>
+                                        <source>src/main/hadoop23</source>
+                                        <source>src/main/hadoop26</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>hadoop-3.3</id>
+            <properties>
+                <hadoop.version>3.3.6</hadoop.version>
             </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
@@ -934,6 +939,12 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
                 <version>${commons-compress.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>javax.xml.bind</groupId>
+                <artifactId>jaxb-api</artifactId>
+                <version>${jaxb.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>

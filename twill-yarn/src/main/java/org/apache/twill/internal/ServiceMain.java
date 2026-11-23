@@ -19,7 +19,7 @@ package org.apache.twill.internal;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.classic.util.ContextInitializer;
+import ch.qos.logback.classic.util.DefaultJoranConfigurator;
 import ch.qos.logback.core.filter.Filter;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.spi.FilterReply;
@@ -204,13 +204,14 @@ public abstract class ServiceMain {
 
     LoggerContext context = (LoggerContext) loggerFactory;
 
-    ContextInitializer contextInitializer = new ContextInitializer(context);
-    URL url = contextInitializer.findURLOfDefaultConfigurationFile(false);
+    DefaultJoranConfigurator configurator = new DefaultJoranConfigurator();
+    configurator.setContext(context);
+    URL url = configurator.findURLOfDefaultConfigurationFile(false);
     if (url == null) {
       // The logger context was not initialized using configuration file, initialize it with the logback template.
       File twillLogback = new File(Constants.Files.RUNTIME_CONFIG_JAR, Constants.Files.LOGBACK_TEMPLATE);
       if (twillLogback.exists()) {
-        contextInitializer.configureByResource(twillLogback.toURI().toURL());
+        configurator.configureByResource(twillLogback.toURI().toURL());
       }
     }
 
