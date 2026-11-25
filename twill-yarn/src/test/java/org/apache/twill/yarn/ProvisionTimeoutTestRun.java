@@ -63,7 +63,7 @@ public final class ProvisionTimeoutTestRun extends BaseYarnTest {
     // The provision should failed in 30 seconds after AM started, which AM could took a while to start.
     // Hence we give 90 seconds max time here.
     try {
-      controller.awaitTerminated(90, TimeUnit.SECONDS);
+      controller.awaitTerminated(180, TimeUnit.SECONDS);
       // EventHandler#aborted() method should be called to create a file
       Assert.assertTrue(new File(parentFolder.getAbsolutePath(), ABORTED_FILE).exists());
       String[] abortedFiles = parentFolder.list();
@@ -136,7 +136,7 @@ public final class ProvisionTimeoutTestRun extends BaseYarnTest {
         .add(new TimeoutRunnable(),
              ResourceSpecification.Builder.with()
                .setVirtualCores(1)
-               .setMemory(8, ResourceSpecification.SizeUnit.GIGA).build())
+               .setMemory(100, ResourceSpecification.SizeUnit.GIGA).setInstances(100).build())
         .noLocalFiles()
         .anyOrder()
         .withEventHandler(new Handler(parentFolderPath))

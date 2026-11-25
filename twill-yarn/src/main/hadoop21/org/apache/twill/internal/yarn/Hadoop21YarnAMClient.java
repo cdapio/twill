@@ -86,12 +86,12 @@ public class Hadoop21YarnAMClient extends AbstractYarnAMClient<AMRMClient.Contai
                                                                                       trackerAddr.getPort(),
                                                                                       trackerUrl.toString());
     maxCapability = response.getMaximumResourceCapability();
-    nmClient.startAndWait();
+    nmClient.startAsync().awaitRunning();
   }
 
   @Override
   protected void shutDown() throws Exception {
-    nmClient.stopAndWait();
+    nmClient.stopAsync().awaitTerminated();
     amrmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, trackerUrl.toString());
     amrmClient.stop();
   }

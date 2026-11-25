@@ -21,32 +21,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * Test suite for all tests with mini yarn cluster.
+ * Test suite for log handling, local files, and JVM options with mini yarn cluster (Cluster 2 of 3).
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-  ContainerSizeTestRun.class,
-  CustomClassLoaderTestRun.class,
-  DebugTestRun.class,
-  DistributeShellTestRun.class,
-  EchoServerTestRun.class,
-  EnvironmentTestRun.class,
-  EventHandlerTestRun.class,
   FailureRestartTestRun.class,
   InitializeFailTestRun.class,
   JvmOptionsTestRun.class,
   LocalFileTestRun.class,
   LogHandlerTestRun.class,
   LogLevelChangeTestRun.class,
-  LogLevelTestRun.class,
-  PlacementPolicyTestRun.class,
-  ProvisionTimeoutTestRun.class,
-  ResourceReportTestRun.class,
-  ServiceDiscoveryTestRun.class,
-  SessionExpireTestRun.class,
-  TaskCompletedTestRun.class,
-  RestartRunnableTestRun.class,
-  MaxRetriesTestRun.class
+  LogLevelTestRun.class
 })
-public final class YarnTestSuite extends BaseYarnTest {
+public class YarnLoggingTestSuite extends BaseYarnTest {
 }
