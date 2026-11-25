@@ -169,7 +169,7 @@ public final class ApplicationMasterMain extends ServiceMain {
       // no left over content from previous AM attempt.
       LOG.info("Preparing Kafka ZK path {}{}", zkClient.getConnectString(), kafkaZKPath);
       ZKOperations.createDeleteIfExists(zkClient, kafkaZKPath, null, CreateMode.PERSISTENT, true).get();
-      kafkaServer.startAndWait();
+      kafkaServer.startAsync().awaitRunning();
     }
 
     @Override
@@ -183,7 +183,7 @@ public final class ApplicationMasterMain extends ServiceMain {
         // Ignore
         LOG.info("Kafka shutdown delay interrupted", e);
       } finally {
-        kafkaServer.stopAndWait();
+        kafkaServer.stopAsync().awaitTerminated();
       }
     }
 
@@ -208,6 +208,7 @@ public final class ApplicationMasterMain extends ServiceMain {
       // Setting it to lower value allow the AM to retry multiple times if race happens.
       prop.setProperty("zookeeper.connection.timeout.ms", "3000");
       prop.setProperty("default.replication.factor", "1");
+      prop.setProperty("log.cleaner.enable", "false");
       return prop;
     }
   }
@@ -230,13 +231,13 @@ public final class ApplicationMasterMain extends ServiceMain {
     @Override
     protected void startUp() throws Exception {
       trackerService.setHost(yarnAMClient.getHost());
-      trackerService.startAndWait();
+      trackerService.startAsync().awaitRunning();
 
       yarnAMClient.setTracker(trackerService.getBindAddress(), trackerService.getUrl());
       try {
-        yarnAMClient.startAndWait();
+        yarnAMClient.startAsync().awaitRunning();
       } catch (Exception e) {
-        trackerService.stopAndWait();
+        trackerService.stopAsync().awaitTerminated();
         throw e;
       }
     }
@@ -244,9 +245,9 @@ public final class ApplicationMasterMain extends ServiceMain {
     @Override
     protected void shutDown() throws Exception {
       try {
-        yarnAMClient.stopAndWait();
+        yarnAMClient.stopAsync().awaitTerminated();
       } finally {
-        trackerService.stopAndWait();
+        trackerService.stopAsync().awaitTerminated();
       }
     }
   }

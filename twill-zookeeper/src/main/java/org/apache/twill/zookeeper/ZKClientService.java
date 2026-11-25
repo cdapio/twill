@@ -28,8 +28,8 @@ import org.apache.zookeeper.server.ZooKeeperServer;
 
 /**
  * A {@link ZKClient} that extends from {@link Service} to provide lifecycle management functions.
- * The {@link #start()} method needed to be called before calling any other method on this interface.
- * When the client is no longer needed, call {@link #stop()} to release any resources that it holds.
+ * The {@link #startAsync()} method needed to be called before calling any other method on this interface.
+ * When the client is no longer needed, call {@link #stopAsync()} to release any resources that it holds.
  */
 public interface ZKClientService extends ZKClient, Service {
 

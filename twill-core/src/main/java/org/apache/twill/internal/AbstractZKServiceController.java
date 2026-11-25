@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.Service.State;
 import org.apache.twill.api.Command;
 import org.apache.twill.api.RunId;
 import org.apache.twill.api.ServiceController;
@@ -154,7 +155,7 @@ public abstract class AbstractZKServiceController extends AbstractExecutionServi
       // In force shutdown, don't send message.
       stopMessageFuture = Futures.immediateFuture(State.TERMINATED);
     }
-    stop();
+    stopAsync();
   }
 
 

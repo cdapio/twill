@@ -27,7 +27,9 @@ import javax.annotation.Nullable;
 /**
  * A {@link ServiceController} that allows sending a message directly. Internal use only.
  */
-public interface TwillContainerController extends ServiceController, Service {
+public interface TwillContainerController extends ServiceController {
+
+  Service.State state();
 
   ListenableFuture<Message> sendMessage(Message message);
 
