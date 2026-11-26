@@ -28,8 +28,6 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 
 /**
  * Verifies Logback 1.6 {@link DefaultJoranConfigurator} configuration loading in {@link ServiceMain}.
@@ -66,22 +64,44 @@ public class ServiceMainLogbackTest {
   public void testSkipsTemplateWhenDefaultConfigPresent() throws Exception {
     URL templateUrl = getClass().getClassLoader().getResource(Constants.Files.LOGBACK_TEMPLATE);
     Assert.assertNotNull(templateUrl);
-    File customXml = tmpFolder.newFile("custom-logback.xml");
-    Files.write(customXml.toPath(),
-                "<configuration><root level=\"ERROR\"/></configuration>".getBytes(StandardCharsets.UTF_8));
 
-    String prev = System.getProperty("logback.configurationFile");
     LoggerContext context = new LoggerContext();
     try {
-      System.setProperty("logback.configurationFile", customXml.getAbsolutePath());
-      ServiceMain.configureLoggerContext(context, new DefaultJoranConfigurator(), new File(templateUrl.toURI()));
+      context.getLogger(Logger.ROOT_LOGGER_NAME).setLevel(Level.ERROR);
+      DefaultJoranConfigurator existingDefaultConfig = new DefaultJoranConfigurator() {
+        @Override
+        public URL findURLOfDefaultConfigurationFile(boolean updateStatus) {
+          return templateUrl;
+        }
+      };
+      ServiceMain.configureLoggerContext(context, existingDefaultConfig, new File(templateUrl.toURI()));
+
+      Assert.assertEquals(Level.ERROR, context.getLogger(Logger.ROOT_LOGGER_NAME).getLevel());
       Assert.assertNull(context.getLogger("org.apache.hadoop").getLevel());
     } finally {
-      if (prev == null) {
-        System.clearProperty("logback.configurationFile");
-      } else {
-        System.setProperty("logback.configurationFile", prev);
-      }
+      context.stop();
+    }
+  }
+
+  @Test
+  public void testSkipsWhenTemplateFileMissing() throws Exception {
+    File missingFile = new File(tmpFolder.getRoot(), "missing-logback-template.xml");
+    Assert.assertFalse(missingFile.exists());
+
+    LoggerContext context = new LoggerContext();
+    try {
+      context.getLogger(Logger.ROOT_LOGGER_NAME).setLevel(Level.ERROR);
+      DefaultJoranConfigurator noDefaultConfig = new DefaultJoranConfigurator() {
+        @Override
+        public URL findURLOfDefaultConfigurationFile(boolean updateStatus) {
+          return null;
+        }
+      };
+      ServiceMain.configureLoggerContext(context, noDefaultConfig, missingFile);
+
+      Assert.assertEquals(Level.ERROR, context.getLogger(Logger.ROOT_LOGGER_NAME).getLevel());
+      Assert.assertNull(context.getLogger("org.apache.hadoop").getLevel());
+    } finally {
       context.stop();
     }
   }
