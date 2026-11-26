@@ -18,16 +18,18 @@ on:
 jobs:
   build:
     runs-on: k8s-runner-build
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
       matrix:
-        branch: [ develop, release/1.1, release/1.2, release/1.3 ]
+        branch: [ develop, release/1.4 ]
 
     steps:
       - name: Get Secrets from GCP Secret Manager
         id: 'secrets'
-        uses: 'google-github-actions/get-secretmanager-secrets@v0'
+        uses: 'google-github-actions/get-secretmanager-secrets@bdbd22a6198303dd1c27ca96e4a133f2ae92503d' # v0
         with:
           secrets: |-
             CDAP_OSSRH_USERNAME:cdapio-github-builds/CDAP_OSSRH_USERNAME
@@ -36,14 +38,22 @@ jobs:
             CDAP_GPG_PRIVATE_KEY:cdapio-github-builds/CDAP_GPG_PRIVATE_KEY
 
       - name: Recursively Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
         with:
           fetch-depth: 0
+          persist-credentials: false
           path: twill
           ref: ${{ matrix.branch }}
 
+      - name: Set up JDK 11
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          overwrite-settings: false
+
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
@@ -51,11 +61,13 @@ jobs:
             ${{ runner.os }}-maven-${{ github.workflow }}
 
       - name: Set up GPG conf
+        if: ${{ matrix.branch == 'develop' || startsWith(matrix.branch, 'release/') }}
         run: |
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
 
       - name: Import GPG key
+        if: ${{ matrix.branch == 'develop' || startsWith(matrix.branch, 'release/') }}
         run: |
           echo "$GPG_PRIVATE_KEY" > private.key
           gpg --import --batch private.key
@@ -63,8 +75,9 @@ jobs:
           GPG_PRIVATE_KEY: ${{ steps.secrets.outputs.CDAP_GPG_PRIVATE_KEY }}
 
       - name: Deploy Maven
+        if: ${{ matrix.branch == 'develop' || startsWith(matrix.branch, 'release/') }}
         working-directory: twill
-        run: mvn deploy -B -V -DskipTests -P hadoop-2.6 -Dgpg.passphrase=$CDAP_GPG_PASSPHRASE -Dremoteresources.skip=true
+        run: mvn deploy -B -V -DskipTests -P hadoop-3.3 -Dgpg.passphrase=$CDAP_GPG_PASSPHRASE -Dremoteresources.skip=true
         env:
           CDAP_OSSRH_USERNAME: ${{ steps.secrets.outputs.CDAP_OSSRH_USERNAME }}
           CDAP_OSSRH_PASSWORD: ${{ steps.secrets.outputs.CDAP_OSSRH_PASSWORD }}
